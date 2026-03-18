@@ -1,0 +1,17 @@
+[project]
+name = "singularity-payments"
+version = "0.1.0"
+description = "SDK for Mpesa payments."
+readme = "README.md"
+authors = [
+    { name = "mtume", email = "mtume2016@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+singularity-payments = "singularity_payments:main"
+
+[build-system]
+requires = ["uv_build>=0.9.2,<0.10.0"]
+build-backend = "uv_build"
