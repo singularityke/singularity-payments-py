@@ -14,160 +14,160 @@ B2BCommandID = Literal[
 BalanceIdentifierType = Literal["1", "2", "4"]  # 1=MSISDN, 2=Till, 4=Paybill
 
 class ResultParameterItem(BaseModel):
-    Key: str
-    Value: Union[str, int, float]
+    key: str
+    value: Union[str, int, float]
 
 class ResultParametersType(BaseModel):
-    ResultParameter: List[ResultParameterItem]
+    result_parameter: List[ResultParameterItem]
 
 class CallbackResult(BaseModel):
-    ResultType: int
-    ResultCode: int
-    ResultDesc: str
-    OriginatorConversationID: str
-    ConversationID: str
-    TransactionID: str
-    ResultParameters: Optional[ResultParametersType] = None
+    result_type: int
+    result_code: int
+    result_desc: str
+    originator_conversation_id: str
+    conversation_id: str
+    transaction_id: str
+    result_parameters: Optional[ResultParametersType] = None
 
 # --- STK Push (M-Pesa Express) ---
 
 class STKPushRequest(BaseModel):
-    Amount: float
-    PhoneNumber: str
-    AccountReference: str
-    TransactionDesc: str
-    CallbackUrl: AnyUrl
+    amount: float
+    phone_number: str
+    account_reference: str
+    transaction_desc: str
+    callback_url: AnyUrl
 
 class STKPushResponse(BaseModel):
-    MerchantRequestID: str
-    CheckoutRequestID: str
-    ResponseCode: str
-    ResponseDescription: str
-    CustomerMessage: str
+    merchant_request_id: str
+    checkout_request_id: str
+    response_code: str
+    response_description: str
+    customer_message: str
 
 class CallbackMetadataType(BaseModel):
-    Item: List[ResultParameterItem]
+    item: List[ResultParameterItem]
 
 class STKCallbackDetails(BaseModel):
-    MerchantRequestID: str
-    CheckoutRequestID: str
-    ResultCode: int
-    ResultDesc: str
-    CallbackMetadata: Optional[CallbackMetadataType] = None
+    merchant_request_id: str
+    checkout_request_id: str
+    result_code: int
+    result_desc: str
+    callback_metadata: Optional[CallbackMetadataType] = None
 
 class STKResponseBody(BaseModel):
-    stkCallback: STKCallbackDetails
+    stk_callback: STKCallbackDetails
 
 class STKCallback(BaseModel):
-    Body: STKResponseBody
+    body: STKResponseBody
 
 # --- C2B (Customer to Business) ---
 
 class C2BRegisterRequest(BaseModel):
-    ShortCode: str
-    ResponseType: Literal["Completed", "Cancelled"] = "Completed"
-    ConfirmationURL: AnyUrl
-    ValidationURL: AnyUrl
+    short_code: str
+    response_type: Literal["Completed", "Cancelled"] = "Completed"
+    confirmation_url: AnyUrl
+    validation_url: AnyUrl
 
 class C2BRegisterResponse(BaseModel):
-    OriginatorConversationID: str
-    ResponseCode: str
-    ResponseDescription: str
+    originator_conversation_id: str
+    response_code: str
+    response_description: str
 
 class C2BCallback(BaseModel):
-    TransactionType: str
-    TransID: str
-    TransTime: str
-    TransAmount: str
-    BusinessShortCode: str
-    BillRefNumber: str
-    InvoiceNumber: Optional[str] = None
-    OrgAccountBalance: Optional[str] = None
-    ThirdPartyTransID: Optional[str] = None
-    MSISDN: str
-    FirstName: Optional[str] = None
-    MiddleName: Optional[str] = None
-    LastName: Optional[str] = None
+    transaction_type: str
+    trans_id: str
+    trans_time: str
+    trans_amount: str
+    business_short_code: str
+    bill_ref_number: str
+    invoice_number: Optional[str] = None
+    org_account_balance: Optional[str] = None
+    third_party_trans_id: Optional[str] = None
+    msisdn: str
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class C2BSimulateRequest(BaseModel):
-    ShortCode: str
-    Amount: float
-    Msisdn: str
-    BillRefNumber: str
-    CommandID: Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]
+    short_code: str
+    amount: float
+    msisdn: str
+    bill_ref_number: str
+    command_id: Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]
 
 class C2BSimulateResponse(BaseModel):
-    ConversationID: str
-    OriginatorConversationID: str
-    ResponseDescription: str
+    conversation_id: str
+    originator_conversation_id: str
+    response_description: str
 
 # --- B2B / B2C / Reversals ---
 
 class B2BRequest(BaseModel):
-    Amount: float
-    PartyB: str
-    CommandID: B2BCommandID
-    SenderIdentifierType: BalanceIdentifierType
-    ReceiverIdentifierType: BalanceIdentifierType
-    Remarks: str
-    AccountReference: str
-    ResultURL: AnyUrl
-    QueueTimeOutURL: AnyUrl
+    amount: float
+    party_b: str
+    command_id: B2BCommandID
+    sender_identifier_type: BalanceIdentifierType
+    receiver_identifier_type: BalanceIdentifierType
+    remarks: str
+    account_reference: str
+    result_url: AnyUrl
+    queue_timeout_url: AnyUrl
 
 class B2BResponse(BaseModel):
-    ConversationID: str
-    OriginatorConversationID: str
-    ResponseCode: str
-    ResponseDescription: str
+    conversation_id: str
+    originator_conversation_id: str
+    response_code: str
+    response_description: str
 
 class B2BCallback(BaseModel):
-    Result: CallbackResult
+    result: CallbackResult
 
 # --- Account Balance & Status ---
 
 class AccountBalanceRequest(BaseModel):
-    IdentifierType: BalanceIdentifierType
-    Remarks: str
-    ResultURL: AnyUrl
-    QueueTimeOutURL: AnyUrl
+    identifier_type: BalanceIdentifierType
+    remarks: str
+    result_url: AnyUrl
+    queue_timeout_url: AnyUrl
 
 class AccountBalanceResponse(BaseModel):
-    ConversationID: str
-    OriginatorConversationID: str
-    ResponseCode: str
-    ResponseDescription: str
+    conversation_id: str
+    originator_conversation_id: str
+    response_code: str
+    response_description: str
 
 class TransactionStatusRequest(BaseModel):
-    TransactionID: str
-    IdentifierType: BalanceIdentifierType
-    Remarks: str
-    Occasion: Optional[str] = None
-    ResultURL: AnyUrl
-    QueueTimeOutURL: AnyUrl
+    transaction_id: str
+    identifier_type: BalanceIdentifierType
+    remarks: str
+    occasion: Optional[str] = None
+    result_url: AnyUrl
+    queue_timeout_url: AnyUrl
 
 # --- Reversal ---
 
 class ReversalRequest(BaseModel):
-    TransactionID: str
-    Amount: float
-    ReceiverParty: str
-    ReceiverIdentifierType: Literal["1", "2", "4", "11"]
-    Remarks: str
-    Occasion: Optional[str] = None
-    ResultURL: AnyUrl
-    QueueTimeOutURL: AnyUrl
+    transaction_id: str
+    amount: float
+    receiver_party: str
+    receiver_identifier_type: Literal["1", "2", "4", "11"]
+    remarks: str
+    occasion: Optional[str] = None
+    result_url: AnyUrl
+    queue_timeout_url: AnyUrl
 
 # --- QR Code ---
 
 class DynamicQRRequest(BaseModel):
-    MerchantName: str
-    RefNo: str
-    Amount: float
-    TrxCode: Literal["BG", "WA", "PB", "SM"]
-    CPI: str  # Credit Party Identifier
-    Size: Optional[Literal["300", "500"]] = None
+    merchant_name: str
+    ref_no: str
+    amount: float
+    trx_code: Literal["BG", "WA", "PB", "SM"]
+    cpi: str  # Credit Party Identifier
+    size: Optional[Literal["300", "500"]] = None
 
 class DynamicQRResponse(BaseModel):
-    ResponseCode: str
-    ResponseDescription: str
-    QRCode: str
+    response_code: str
+    response_description: str
+    qr_code: str

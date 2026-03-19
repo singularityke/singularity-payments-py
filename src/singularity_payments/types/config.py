@@ -1,5 +1,6 @@
 from pydantic import BaseModel, AnyUrl
 from collections.abc import Callable
+from typing import Optional, Any
 
 
 class MpesaConfig(BaseModel):
@@ -8,15 +9,15 @@ class MpesaConfig(BaseModel):
     passkey: str
     shortcode: str
     environment: str
-    callback_url: AnyUrl = None
-    timeout_url: AnyUrl = None
-    result_url: AnyUrl = None
-    initiator_name: str = None
-    security_credential: str = None
+    callback_url: Optional[str] = None
+    timeout_url: Optional[str] = None
+    result_url: Optional[str] = None
+    initiator_name: Optional[str] = None
+    security_credential: Optional[str] = None
    
 
 
 class MpesaPluginConfig(BaseModel):
-    name:str
-    init: Callable
+    name: str
+    init: Callable[[Any], None]
     
