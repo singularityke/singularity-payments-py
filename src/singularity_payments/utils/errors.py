@@ -77,13 +77,21 @@ class MpesaApiError(MpesaError):
 
 
 # Parese Mpesa API error response
-
-
-
 def parse_mpesa_api_error(
         status_code: float, 
         response_body: Any
         ) -> MpesaError:
+    """
+    Parse the Mpesa API error response and return an instance of MpesaError
+
+    Args:
+    status_code:(float) HTTP status code of the response
+    response_body:(Any) JSON response body of the API call
+    
+    Returns:
+    MpesaError: An instance of MpesaError based on the error response
+    
+    """
     error_message = (
         response_body.get("errorMessage") or
         response_body.get("ResponseDescription") or
