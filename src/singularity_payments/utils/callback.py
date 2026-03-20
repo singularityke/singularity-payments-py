@@ -1,5 +1,5 @@
 from ..types.mpesa import  STKCallback, CallbackMetadata, C2BCallback,B2BCallback, ReversalCallback, TransactionStatusCallback, AccountBalanceCallback
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, Callable, Any, ClassVar, Dict
 import datetime
 import logging
@@ -72,38 +72,49 @@ class OnTransactionStatusResultType(BaseModel):
     error_message:Optional[str]=None
 
 class ParseReversalCallbackReturnType(BaseModel):
-         is_success:bool
-         trnasaction_id:Optional[str]=None
-         error_message:Optional[str]
+    model_config = ConfigDict(extra='allow')
+    is_success:bool
+    transaction_id:Optional[str]=None
+    error_message:Optional[str]
+
 class OnReversalResultType(BaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     error_message:Optional[str]=None
 
-class ParseB2BCallbackReturnType(BaseModel):
-            is_success:bool
-            transaction_id:Optional[str]=None
-            amount:Optional[float]=None
-            conversation_id:Optional[str]=None
-            originator_conversation_id:Optional[str]=None
-            debit_account_balance:Optional[str]=None
-            debit_party_affected_account_balance=Optional[str]=None
-            transaction_completed_time:Optional[str]=None
-            receiver_party_public_name:Optional[str]=None
-            currency:Optional[str]=None
-            error_message:Optional[str]=None
 
 class LoggerType(BaseModel):
     info:Callable[[str, Any, Any]]
     error:Callable[[str, Any, Any]]
     warn:Callable[[str, Any, Any]]
 
+
+class ParseB2BCallbackReturnType(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    is_success:bool
+    transaction_id:Optional[str]=None
+    amount:Optional[float]=None
+    conversation_id:Optional[str]=None
+    originator_conversation_id:Optional[str]=None
+    debit_account_balance:Optional[str]=None
+    debit_party_affected_account_balance=Optional[str]=None
+    transaction_completed_time:Optional[str]=None
+    receiver_party_public_name:Optional[str]=None
+    currency:Optional[str]=None
+    error_message:Optional[str]=None
+
+class CreateCallbackResponseReturnType(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    result_code:float
+    result_desc:str
+
 class ParseAccountBalanceCallbackReturnType(BaseModel):
-                is_success:bool
-                working_balance:Optional[float]=None
-                available_balance:Optional[float]=None
-                booked_balance:Optional[float]=None
-                error_message:Optional[str]=None
+    model_config = ConfigDict(extra='allow')
+    is_success:bool
+    working_balance:Optional[float]=None
+    available_balance:Optional[float]=None
+    booked_balance:Optional[float]=None
+    error_message:Optional[str]=None
 
 class CallbackHandlerOptions(BaseModel):
     on_success:Optional[Callable[[ParsedCallbackData], Any]]=None,
@@ -160,8 +171,8 @@ class MpesaCallbackHandler(BaseModel):
             checkout_request_id=stk_callback.checkout_request_id,
             result_code=stk_callback.result_code,
             result_description=stk_callback.result_description,
-            is_sucess=stk_callback.result_code == 0,
-            error_mesage= stk_callback.result_description if stk_callback.result_code != 0 else None
+            is_success=stk_callback.result_code == 0,
+            error_message= stk_callback.result_description if stk_callback.result_code != 0 else None
         )
         if stk_callback.result_code == 0 and stk_callback.callback_metadata:
             metadata = self.extract_metadata(stk_callback.callback_metadata)
@@ -269,7 +280,7 @@ class MpesaCallbackHandler(BaseModel):
             "1":"Insufficient Funds in Mpesa account",
             "17":"User cancelled the transaction",
             "26":"System internal error",
-            "1001":"Unavle to lock subscriber, a transaction is already in process",
+            "1001":"Unable to lock subscriber, a transaction is already in process",
             "1019":"Transaction expired. No response from user",
             "1032":"Request cancelled by user",
             "1037":"Timeout in sending PIN request",
@@ -387,7 +398,7 @@ class MpesaCallbackHandler(BaseModel):
                     elif key=="B2CChargesPaidAccountAvailableFunds":
                         parsed["charges"]=float(value)
 
-            return parsed
+            return OnB2CResultType(**parsed)
         
 
 
@@ -433,7 +444,7 @@ class MpesaCallbackHandler(BaseModel):
                     elif key=="Currency":
                         parsed["currency"]=str(value)
 
-                return parsed
+                return ParseB2BCallbackReturnType(**parsed)
             
 
 
@@ -457,7 +468,7 @@ class MpesaCallbackHandler(BaseModel):
                         elif key=="BookedBalance":
                             parsed["booked_balance"]=float(value)
 
-                return parsed
+                return ParseAccountBalanceCallbackReturnType(**parsed)
             
 
     def parse_transaction_status_callback(self, callback: TransactionStatusCallback)->OnTransactionStatusResultType:
@@ -482,21 +493,22 @@ class MpesaCallbackHandler(BaseModel):
                         elif key=="InitiatedTime":
                             parsed["initiated_time"]=str(value) # might need to use _format_date function here
 
-                return parsed
+                return OnTransactionStatusResultType(**parsed)  
             
 
     
 
     def parse_reversal_callback(self, callback: ReversalCallback)->ParseReversalCallbackReturnType:
             result = callback.result
-            return {
-                 "is_success":result.result_code == 0,
-                 "transaction_id":result.transaction_id,
-                 "error_message":self.get_error_message(result.result_code) if result.result_code != 0 else None,
-            }
+            return ParseReversalCallbackReturnType(
+                 is_success=result.result_code == 0,
+                 transaction_id=result.transaction_id,
+                 error_message=self.get_error_message(result.result_code) if result.result_code != 0 else None,
+            )
+            
     
 
-    def create_callback_response(self, success:bool=True, message:Optional[str]=None)->dict:
+    def create_callback_response(self, success:bool=True, message:Optional[str]=None)->CreateCallbackResponseReturnType:
          """
          Creates a standard callback response for Mpesa
          Args:
@@ -505,10 +517,9 @@ class MpesaCallbackHandler(BaseModel):
         Returns:
             (dict): Callback response
          """
-         return {
-              "result_code":0 if success else 1,
-              "result_desc":message or ("Accepted" if success else "Rejected")
-         }
+         return CreateCallbackResponseReturnType(result_code=0 if success else 1, result_desc=message or ("Accepted" if success else "Rejected"))
+    
+
 
             
 

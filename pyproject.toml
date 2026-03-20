@@ -7,7 +7,9 @@ authors = [
     { name = "mtume", email = "mtume2016@gmail.com" }
 ]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "pydantic>=2.12.5",
+]
 
 [project.scripts]
 singularity-payments = "singularity_payments:main"
