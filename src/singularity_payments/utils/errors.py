@@ -2,7 +2,6 @@ from pydantic import Optional
 from typing import Any
 
 
-
 class MpesaError(Exception):
     def __init__(self, 
         message: Optional[str]=None, 

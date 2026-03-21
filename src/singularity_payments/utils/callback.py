@@ -1,12 +1,12 @@
 from ..types.mpesa import  STKCallback, CallbackMetadata, C2BCallback,B2BCallback, ReversalCallback, TransactionStatusCallback, AccountBalanceCallback
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from typing import Optional, Callable, Any, ClassVar, Dict
 import datetime
 import logging
+from ..types.base import MpesaBaseModel
 
 
-
-class ParsedCallbackData(BaseModel):
+class ParsedCallbackData(MpesaBaseModel):
     merchant_request_id:str
     checkout_request_id:str
     result_code:str
@@ -20,7 +20,7 @@ class ParsedCallbackData(BaseModel):
 
 
 
-class ParsedC2BCallback(BaseModel):
+class ParsedC2BCallback(MpesaBaseModel):
     transaction_type:str
     transaction_id:str
     transaction_time:str
@@ -34,7 +34,7 @@ class ParsedC2BCallback(BaseModel):
     last_name:Optional[str]=None
 
 
-class OnB2CResultType(BaseModel):
+class OnB2CResultType(MpesaBaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     amount:Optional[float]=None
@@ -42,7 +42,7 @@ class OnB2CResultType(BaseModel):
     charges:Optional[float]=None
     error_message:Optional[str]=None
 
-class OnB2BResultType(BaseModel):
+class OnB2BResultType(MpesaBaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     amount:Optional[float]=None
@@ -55,7 +55,7 @@ class OnB2BResultType(BaseModel):
     error_message:Optional[str]=None
 
 
-class OnAccountBalanceResultType(BaseModel):
+class OnAccountBalanceResultType(MpesaBaseModel):
     is_success:bool
     working_account_balance:Optional[float]=None
     available_balance:Optional[float]=None
@@ -63,7 +63,7 @@ class OnAccountBalanceResultType(BaseModel):
     error_message:Optional[str]=None
 
 
-class OnTransactionStatusResultType(BaseModel):
+class OnTransactionStatusResultType(MpesaBaseModel):
     is_success:bool
     receipt_no:Optional[str]=None
     amount:Optional[float]=None
@@ -71,26 +71,24 @@ class OnTransactionStatusResultType(BaseModel):
     originator_conversation_id:Optional[str]=None
     error_message:Optional[str]=None
 
-class ParseReversalCallbackReturnType(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class ParseReversalCallbackReturnType(MpesaBaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     error_message:Optional[str]
 
-class OnReversalResultType(BaseModel):
+class OnReversalResultType(MpesaBaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     error_message:Optional[str]=None
 
 
-class LoggerType(BaseModel):
+class LoggerType(MpesaBaseModel):
     info:Callable[[str, Any, Any]]
     error:Callable[[str, Any, Any]]
     warn:Callable[[str, Any, Any]]
 
 
-class ParseB2BCallbackReturnType(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class ParseB2BCallbackReturnType(MpesaBaseModel):
     is_success:bool
     transaction_id:Optional[str]=None
     amount:Optional[float]=None
@@ -103,20 +101,18 @@ class ParseB2BCallbackReturnType(BaseModel):
     currency:Optional[str]=None
     error_message:Optional[str]=None
 
-class CreateCallbackResponseReturnType(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class CreateCallbackResponseReturnType(MpesaBaseModel):
     result_code:float
     result_desc:str
 
-class ParseAccountBalanceCallbackReturnType(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class ParseAccountBalanceCallbackReturnType(MpesaBaseModel):
     is_success:bool
     working_balance:Optional[float]=None
     available_balance:Optional[float]=None
     booked_balance:Optional[float]=None
     error_message:Optional[str]=None
 
-class CallbackHandlerOptions(BaseModel):
+class CallbackHandlerOptions(MpesaBaseModel):
     on_success:Optional[Callable[[ParsedCallbackData], Any]]=None,
     on_failure:Optional[Callable[[ParsedCallbackData], Any]]=None,
     on_callback:Optional[Callable[[ParsedCallbackData], Any]]=None,
@@ -136,7 +132,7 @@ class CallbackHandlerOptions(BaseModel):
 
 
 
-class MpesaCallbackHandler(BaseModel):
+class MpesaCallbackHandler(MpesaBaseModel):
     logger = logging.getLogger(__name__)
     options: CallbackHandlerOptions 
     

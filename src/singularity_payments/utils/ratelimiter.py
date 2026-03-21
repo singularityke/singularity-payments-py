@@ -1,29 +1,28 @@
 from .errors import MpesaRateLimitError
-from pydantic import BaseModel
 from typing import Optional, Dict, Any, Callable
 import asyncio
 import time
 import math
+from ..types.base import MpesaBaseModel
 
 
 
-
-class RateLimiterOptions(BaseModel):
+class RateLimiterOptions(MpesaBaseModel):
     max_requests:float
     window_ms:float
     key_prefix:Optional[str]=None
 
 
-class RateLimitEntry(BaseModel):
+class RateLimitEntry(MpesaBaseModel):
     count:float
     reset_at:float
 
-class GetUsageReturnType(BaseModel):
+class GetUsageReturnType(MpesaBaseModel):
     count:float
     remaining:float
     reset_at:float
 
-class RateLimiter(BaseModel):
+class RateLimiter(MpesaBaseModel):
     key_prefix: str = "mpesa"
     _store: Dict[str, Any] = {}
     options: RateLimiterOptions
@@ -119,19 +118,19 @@ class RateLimiter(BaseModel):
            
 
 
-class RedisLikeSet(BaseModel):
+class RedisLikeSet(MpesaBaseModel):
     key:str
     value:str
     mode:str
     duration:str
 
-class RedisLike(BaseModel):
+class RedisLike(MpesaBaseModel):
     get:Callable[[str], Optional[str]]
     set:Callable[[RedisLikeSet], Any]
     incr:Callable[[str], float]
     expire:Callable[[str, float], Any]
 
-class RedisRateLimiter(BaseModel):
+class RedisRateLimiter(MpesaBaseModel):
     _options:RateLimiterOptions
     _redis:RedisLike
     key_prefix:str="mpesa"

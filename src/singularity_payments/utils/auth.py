@@ -1,4 +1,4 @@
-from pydantic import BaseModel, PrivateAttr, Field, Optional
+from pydantic import PrivateAttr, Field, Optional
 from ..types import MpesaConfig
 from .errors import MpesaNetworkError, parse_mpesa_api_error, MpesaAuthError, MpesaTimeoutError, MpesaError
 import time
@@ -7,6 +7,7 @@ import logging
 import base64
 import httpx
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, before_sleep, before_sleep_log
+from ..types.base import MpesaBaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -17,13 +18,13 @@ ENDPOINTS = {
     "production":"https://api.safaricom.co.ke"
 }
 
-class TokenResponse(BaseModel):
+class TokenResponse(MpesaBaseModel):
     access_token:str
     expires_in:str
 
 
 
-class MpesaAuth(BaseModel):
+class MpesaAuth(MpesaBaseModel):
     config:MpesaConfig
     _token:Optional[str] = PrivateAttr(default=None)
     _token_expiry:Optional[int] = PrivateAttr(default=None)
@@ -54,7 +55,7 @@ class MpesaAuth(BaseModel):
             str: base64 encoded password
         """
         timestamp = self.get_timestamp
-        password = base64.b64enocde(f"{self.config.shortcode}:{self.config.passkey}:{timestamp}")
+        password = base64.b64enocde(f"{self.config.short_code}:{self.config.passkey}:{timestamp}")
         return password
     
 

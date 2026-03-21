@@ -1,10 +1,11 @@
 from .errors import MpesaError, MpesaAuthError, MpesaValidationError, MpesaNetworkError, MpesaRateLimitError
-from pydantic import BaseModel
 from typing import Callable, Union, Optional, List, Any
 import random
 import math
 import asyncio
-class RetryOptions(BaseModel):
+from ..types.base import MpesaBaseModel
+
+class RetryOptions(MpesaBaseModel):
     max_retries:Optional[float]=None
     initial_delay_ms:Optional[float]=None
     max_delay_ms:Optional[float]=None
