@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from typing import Optional, Any
+from pydantic import Field
 from .base import MpesaBaseModel
 
 class MpesaConfig(MpesaBaseModel):
@@ -18,16 +19,16 @@ class MpesaConfig(MpesaBaseModel):
         initiator_name (Optional[str]): Name of the API initiator.
         security_credential (Optional[str]): Encrypted security credential for the initiator.
     """
-    consumer_key: str
-    consumer_secret: str
+    consumer_key: str= Field(alias="ConsumerKey")
+    consumer_secret: str= Field(alias="ConsumerSecret")
     passkey: str
-    short_code: str
+    short_code: str= Field(alias="shortcode")
     environment: str
-    callback_url: Optional[str] = None
-    timeout_url: Optional[str] = None
-    result_url: Optional[str] = None
-    initiator_name: Optional[str] = None
-    security_credential: Optional[str] = None
+    callback_url: Optional[str] = Field(None, alias="callbackUrl")
+    timeout_url: Optional[str] = Field(None, alias="timeoutUrl")
+    result_url: Optional[str] = Field(None, alias="resultUrl")
+    initiator_name: Optional[str] =Field(alias="initiatorName")
+    security_credential: Optional[str] = Field(None, alias="securityCredential")
    
 
 

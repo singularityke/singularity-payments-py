@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 class MpesaBaseModel(BaseModel):
     """
     Base Pydantic model for all M-Pesa data models.

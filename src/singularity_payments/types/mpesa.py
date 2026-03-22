@@ -1,4 +1,4 @@
-from pydantic import AnyUrl, Field
+from pydantic import Field
 from typing import Literal, List, Union, Optional
 from .base import MpesaBaseModel
 # --- Shared Types ---
@@ -21,7 +21,7 @@ class ResultParameterItem(MpesaBaseModel):
         key (str): The parameter key (aliased as 'Key').
         value (Union[str, int, float]): The parameter value (aliased as 'Value').
     """
-    key: str = Field(alias="Key")
+    name: str = Field(alias="Name")
     value: Union[str, int, float] = Field(alias="Value")
 
 class ResultParametersType(MpesaBaseModel):
@@ -31,7 +31,7 @@ class ResultParametersType(MpesaBaseModel):
     Attributes:
         result_parameter (List[ResultParameterItem]): List of result parameter items.
     """
-    result_parameter: List[ResultParameterItem]
+    result_parameter: List[ResultParameterItem] = Field(alias="ResultParamter")
 
 class CallbackResult(MpesaBaseModel):
     """
@@ -46,13 +46,13 @@ class CallbackResult(MpesaBaseModel):
         transaction_id (str): Transaction ID.
         result_parameters (Optional[ResultParametersType]): Additional result parameters, if any.
     """
-    result_type: int
-    result_code: int
-    result_desc: str
-    originator_conversation_id: str
-    conversation_id: str
-    transaction_id: str
-    result_parameters: Optional[ResultParametersType] = None
+    result_type: int= Field(alias="ResultType")
+    result_code: int= Field(alias="ResultCode")
+    result_desc: str= Field(alias="ResultDesc")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    conversation_id: str= Field(alias="ConversationID")
+    transaction_id: str= Field(alias="TransactionID")
+    result_parameters: Optional[ResultParametersType] = Field(None,alias="ResultParameters")
 
 # --- STK Push (M-Pesa Express) ---
 
@@ -68,10 +68,10 @@ class STKPushRequest(MpesaBaseModel):
         callback_url (AnyUrl): URL to receive payment callback.
     """
     amount: float
-    phone_number: str
-    account_reference: str
-    transaction_desc: str
-    callback_url: AnyUrl
+    phone_number: str= Field(alias="phoneNumber")
+    account_reference: str= Field(alias="accountReference")
+    transaction_desc: str= Field(alias="transactionDescription")
+    callback_url: Optional[str]= Field(None, alias="callbackUrl")
 
 class STKPushResponse(MpesaBaseModel):
     """
@@ -84,11 +84,11 @@ class STKPushResponse(MpesaBaseModel):
         response_description (str): Description of the response.
         customer_message (str): Message to be shown to the customer.
     """
-    merchant_request_id: str
-    checkout_request_id: str
-    response_code: str
-    response_description: str
-    customer_message: str
+    merchant_request_id: str= Field(alias="MerchantRequestID")
+    checkout_request_id: str= Field(alias="CheckoutRequestID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
+    customer_message: str= Field(alias="CustomerMessage")
     
 
 class CallbackMetadataType(MpesaBaseModel):
@@ -98,7 +98,7 @@ class CallbackMetadataType(MpesaBaseModel):
     Attributes:
         item (List[ResultParameterItem]): List of metadata items.
     """
-    item: List[ResultParameterItem]
+    item: List[ResultParameterItem]= Field(alias="Item")
 
 class STKCallbackDetails(MpesaBaseModel):
     """
@@ -111,11 +111,11 @@ class STKCallbackDetails(MpesaBaseModel):
         result_desc (str): Description of the result.
         callback_metadata (Optional[CallbackMetadataType]): Additional callback metadata, if any.
     """
-    merchant_request_id: str
-    checkout_request_id: str
-    result_code: int
-    result_desc: str
-    callback_metadata: Optional[CallbackMetadataType] = None
+    merchant_request_id: str= Field(alias="MerchantRequestID")
+    checkout_request_id: str= Field(alias="CheckoutRequestID")
+    result_code: int= Field(alias="ResultCode")
+    result_desc: str= Field(alias="ResultDesc")
+    callback_metadata: Optional[CallbackMetadataType] = Field(None, alias="CallbackMetadata")
 
 class STKResponseBody(MpesaBaseModel):
     """
@@ -124,7 +124,7 @@ class STKResponseBody(MpesaBaseModel):
     Attributes:
         stk_callback (STKCallbackDetails): The callback details.
     """
-    stk_callback: STKCallbackDetails
+    stk_callback: STKCallbackDetails= Field(alias="stkCallback")
 
 class STKCallback(MpesaBaseModel):
     """
@@ -133,7 +133,7 @@ class STKCallback(MpesaBaseModel):
     Attributes:
         body (STKResponseBody): The body of the callback.
     """
-    body: STKResponseBody
+    body: STKResponseBody= Field(alias="Body")
 
 # --- C2B (Customer to Business) ---
 
@@ -147,10 +147,10 @@ class C2BRegisterRequest(MpesaBaseModel):
         confirmation_url (AnyUrl): URL to receive confirmation callbacks.
         validation_url (AnyUrl): URL to receive validation callbacks.
     """
-    short_code: str
-    response_type: Literal["Completed", "Cancelled"] = "Completed"
-    confirmation_url: AnyUrl
-    validation_url: AnyUrl
+    short_code: str= Field(alias="shortCode")
+    response_type: Literal["Completed", "Cancelled"] = Field(alias="ResponseType")
+    confirmation_url: str = Field(alias="confirmationURL")
+    validation_url: str= Field(alias="validationURL")
 
 class C2BRegisterResponse(MpesaBaseModel):
     """
@@ -161,9 +161,9 @@ class C2BRegisterResponse(MpesaBaseModel):
         response_code (str): Response code from the API.
         response_description (str): Description of the response.
     """
-    originator_conversation_id: str
-    response_code: str
-    response_description: str
+    originator_conversation_id: str = Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResultDescription")
 
 class C2BCallback(MpesaBaseModel):
     """
@@ -184,19 +184,19 @@ class C2BCallback(MpesaBaseModel):
         middle_name (Optional[str]): Customer's middle name, if any.
         last_name (Optional[str]): Customer's last name, if any.
     """
-    transaction_type: str
-    trans_id: str
-    trans_time: str
-    trans_amount: str
-    business_short_code: str
-    bill_ref_number: str
-    invoice_number: Optional[str] = None
-    org_account_balance: Optional[str] = None
-    third_party_trans_id: Optional[str] = None
-    msisdn: str
-    first_name: Optional[str] = None
-    middle_name: Optional[str] = None
-    last_name: Optional[str] = None
+    transaction_type: str= Field(alias="TransactionType")
+    trans_id: str= Field(alias="TransID")
+    trans_time: str= Field(alias="TransTime")
+    trans_amount: str= Field(alias="TransAmount")
+    business_short_code: str= Field(alias="BusinessShortCode")
+    bill_ref_number: str= Field(alias="BillRefNumber")
+    invoice_number: Optional[str] = Field(None, alias="InvoiceNumber")
+    org_account_balance: Optional[str] = Field(None, alias="OrgAccountBalance")
+    third_party_trans_id: Optional[str] = Field(None, alias="ThirdPartyTransID")
+    msisdn: str= Field(alias="MSISDN")
+    first_name: Optional[str] = Field(None, alias="FirstName")
+    middle_name: Optional[str] = Field(None, alias="MiddleName")
+    last_name: Optional[str] = Field(None, alias="LastName")
 
 class C2BSimulateRequest(MpesaBaseModel):
     """
@@ -209,11 +209,11 @@ class C2BSimulateRequest(MpesaBaseModel):
         bill_ref_number (str): Bill reference number.
         command_id (Literal): Command ID for the simulation.
     """
-    short_code: str
-    amount: float
-    msisdn: str
-    bill_ref_number: str
-    command_id: Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]
+    short_code: str= Field(alias="ShortCode")
+    amount: float= Field(alias="Amount")
+    msisdn: str= Field(alias="MSISDN")
+    bill_ref_number: str= Field(alias="BillRefNumber")
+    command_id: Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]= Field(alias="CommandID")
 
 class C2BSimulateResponse(MpesaBaseModel):
     """
@@ -224,31 +224,31 @@ class C2BSimulateResponse(MpesaBaseModel):
         originator_conversation_id (str): Originator conversation ID.
         response_description (str): Description of the response.
     """
-    conversation_id: str
-    originator_conversation_id: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_description: str= Field(alias="ResponseDescription")
 
 # --- B2B / B2C / Reversals ---
 
 class B2BRequest(MpesaBaseModel):
-    amount: float
-    party_b: str
-    command_id: B2BCommandID
-    sender_identifier_type: BalanceIdentifierType
-    receiver_identifier_type: BalanceIdentifierType
+    amount: float= Field(alias="amount")
+    party_b: str= Field(alias="partyB")
+    command_id: B2BCommandID= Field(alias="commandID")
+    sender_identifier_type: BalanceIdentifierType= Field(alias="senderIdentifierType")
+    receiver_identifier_type: BalanceIdentifierType= Field(alias="receiverIdentifierType")
     remarks: str
-    account_reference: str
-    result_url: AnyUrl
-    queue_timeout_url: AnyUrl
+    account_reference: str= Field(alias="accountReference")
+    result_url: str= Field(alias="resultUrl")
+    timeout_url: str= Field(alias="timeoutUrl")
 
 class B2BResponse(MpesaBaseModel):
-    conversation_id: str
-    originator_conversation_id: str
-    response_code: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
 
 class B2BCallback(MpesaBaseModel):
-    result: CallbackResult
+    result: CallbackResult= Field(alias="Result")
 
 
 
@@ -257,20 +257,20 @@ B2CCommandID = Literal["BusinessPayment", "SalaryPayment", "PromotionPayment"]
 
 
 class B2CRequest(MpesaBaseModel):
-    amount:float
-    phone_number:str
-    command_id:B2CCommandID
+    amount:float= Field(alias="amount")
+    phone_number:str= Field(alias="phoneNumber")
+    command_id:B2CCommandID= Field(alias="commandID")
     remarks:str
-    occasion:Optional[str] = None
-    result_url:Optional[str]=None
-    timeout_url:Optional[str]=None
+    occasion:Optional[str]=None
+    result_url:Optional[str]=Field(None, alias="resultUrl")
+    timeout_url:Optional[str]=Field(None, alias="timoutUrl")
 
 
 class B2CResponse(MpesaBaseModel):
-    conversation_id: str
-    originator_conversation_id: str
-    response_code: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
 
 class B2CReferenceItem(MpesaBaseModel):
     key: str = Field(alias="Key")
@@ -278,18 +278,18 @@ class B2CReferenceItem(MpesaBaseModel):
 
 
 class B2CCallbackResult(MpesaBaseModel):
-    result_type: int
-    result_code: int
-    result_desc: str
-    originator_conversation_id: str
-    conversation_id: str
-    transaction_id: str
-    result_parameters: Optional[ResultParametersType] = None
-    reference_data: Optional[B2CReferenceItem] = None
+    result_type: int= Field(alias="ResultType")
+    result_code: int= Field(alias="ResultCode")
+    result_desc: str= Field(alias="ResultDesc")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    conversation_id: str= Field(alias="ConversationID")
+    transaction_id: str= Field(alias="TransactionID")
+    result_parameters: Optional[ResultParametersType] = Field(None, alias="ResultParameters")
+    reference_data: Optional[B2CReferenceItem] = Field(None, alias="ReferenceData")
 
 
 class B2CCallback(MpesaBaseModel):
-    result: B2CCallbackResult
+    result: B2CCallbackResult= Field(alias="Result")
 
 
 
@@ -298,89 +298,90 @@ class B2CCallback(MpesaBaseModel):
 # --- Account Balance & Status ---
 
 class AccountBalanceRequest(MpesaBaseModel):
-    identifier_type: BalanceIdentifierType
-    remarks: str
-    result_url: AnyUrl
-    queue_timeout_url: AnyUrl
+    party_a:Optional[str]= Field(None, alias="partyA")
+    identifier_type: Optional[BalanceIdentifierType]= Field(None, alias="IdentifierType")
+    remarks: Optional[str]=None
+    result_url: Optional[str]= Field(None,alias="resultUrl")
+    timeout_url: Optional[str]= Field(None,alias="timeoutUrl")
 
 class AccountBalanceResponse(MpesaBaseModel):
-    conversation_id: str
-    originator_conversation_id: str
-    response_code: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
 
 class AccountBalanceCallback(MpesaBaseModel):
-    result: CallbackResult
+    result: CallbackResult= Field(alias="Result")
 
 
 class GeneralTransactionStatusRequest(MpesaBaseModel):
-    transaction_id: str
-    party_a: Optional[str]=None
-    identidier_type:Literal["1", '2', "4"]
-    remarks: Optional[str] = None
-    occasion:Optional[str]=None
-    result_url: Optional[str] = None
-    timeout_url:Optional[str]=None
+    transaction_id: str= Field(alias="TransactionID")
+    party_a: Optional[str]= Field(None, alias="partyA")
+    identidier_type:Optional[Literal["1", '2', "4"]]= Field(None, alias="identifierType")
+    remarks: Optional[str]=None
+    occasion:Optional[str]= None
+    result_url: Optional[str] = Field(None, alias="resultUrl")
+    timeout_url:Optional[str]= Field(None, alias="timeoutUrl")
 
 
 class GeneralTransactionStatusResponse(MpesaBaseModel):
-    conversation_id: str
-    originator_conversation_id: str
-    responce_code: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
 
 class TransactionStatusCallback(MpesaBaseModel):
-    result: CallbackResult
+    result: CallbackResult= Field(alias="Result")
 
 
 
 class TransactionStatusResponse(MpesaBaseModel):
-    response_code:str
-    response_description:str
-    merchant_request_id:str
-    checkout_request_id:str
-    result_code:str
-    result_desc:str
+    response_code:str= Field(alias="ResponseCode")
+    response_description:str= Field(alias="ResponseDescription")
+    merchant_request_id:str= Field(alias="MerchantRequestID")
+    checkout_request_id:str= Field(alias="CheckoutRequestID")
+    result_code:str= Field(alias="ResultCode")
+    result_desc:str= Field(alias="ResultDesc")
 
 
 class TransactionStatusRequest(MpesaBaseModel):
-    checkout_request_id:str
+    checkout_request_id:str= Field(alias="CheckoutRequestID")
 
 # --- Reversal ---
 
 class ReversalRequest(MpesaBaseModel):
-    transaction_id: str
+    transaction_id: str= Field(alias="transactionID")
     amount: float
-    receiver_party: str
-    receiver_identifier_type: Literal["1", "2", "4", "11"]
-    remarks: str
+    receiver_party: Optional[str]= Field(None,alias="receiverParty")
+    receiver_identifier_type: Optional[Literal["1", "2", "4", "11"]]= Field(None,alias="receiverIdentifierType")
+    remarks: Optional[str]= None
     occasion: Optional[str] = None
-    result_url: AnyUrl
-    queue_timeout_url: AnyUrl
+    result_url: Optional[str]= Field(None, alias="resultUrl")
+    timeout_url: Optional[str]= Field(None, alias="timeoutUrl")
 
 
 
 class ReversalResponse(MpesaBaseModel):
-    conversation_id: str
-    originator_conversation_id: str
-    response_code: str
-    response_description: str
+    conversation_id: str= Field(alias="ConversationID")
+    originator_conversation_id: str= Field(alias="OriginatorConversationID")
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
 
 class ReversalCallback(MpesaBaseModel):
-    result: CallbackResult
+    result: CallbackResult= Field(alias="Result")
 
 
 # --- QR Code ---
 
 class DynamicQRRequest(MpesaBaseModel):
-    merchant_name: str
-    ref_no: str
+    merchant_name: str= Field(alias="merchantName")
+    ref_no: str= Field(alias="refNo")
     amount: float
-    transaction_type: Literal["BG", "WA", "PB", "SM"]
-    credit_party_identifier: str  # Credit Party Identifier
-    size: Optional[Literal["300", "500"]] = None # QrCode Size in pixels
+    transaction_type: Literal["BG", "WA", "PB", "SM"]= Field(alias="transactionType") #  BuyGoods, Withdraw, Paybill, SendMoney
+    credit_party_identifier: str= Field(alias="creditPartyIdentifier")  # Credit Party Identifier
+    size: Optional[Literal["300", "500"]]=None  # QrCode Size in pixels
 
 class DynamicQRResponse(MpesaBaseModel):
-    response_code: str
-    response_description: str
-    qr_code: str
+    response_code: str= Field(alias="ResponseCode")
+    response_description: str= Field(alias="ResponseDescription")
+    qr_code: str= Field(alias="QRCode")
