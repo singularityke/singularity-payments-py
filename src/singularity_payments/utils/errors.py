@@ -1,8 +1,16 @@
-from pydantic import Optional
-from typing import Any
+
+from typing import Any,Optional
 
 
 class MpesaError(Exception):
+    """
+    Base exception for all M-Pesa related errors.
+
+    Attributes:
+        message (Optional[str]): Description of the error.
+        status_code (Optional[str]): HTTP status code or error code.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
         message: Optional[str]=None, 
         status_code: Optional[str]=None, 
@@ -17,6 +25,13 @@ class MpesaError(Exception):
 
 
 class MpesaAuthError(MpesaError):
+    """
+    Exception raised for authentication errors with the M-Pesa API.
+
+    Attributes:
+        message (str): Description of the authentication error.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
                 message: str, 
                 details: Optional[Any],
@@ -26,6 +41,13 @@ class MpesaAuthError(MpesaError):
 
 
 class MpesaValidationError(MpesaError):
+    """
+    Exception raised for validation errors with the M-Pesa API.
+
+    Attributes:
+        message (str): Description of the validation error.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
                 message: str, 
                 details: Optional[Any],
@@ -34,6 +56,14 @@ class MpesaValidationError(MpesaError):
         self.name = "MpesaValidationError"
 
 class MpesaNetworkError(MpesaError):
+    """
+    Exception raised for network-related errors with the M-Pesa API.
+
+    Attributes:
+        message (str): Description of the network error.
+        is_retryable (bool): Indicates if the error is retryable.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
                 message: str, 
                 is_retryable: bool, 
@@ -44,6 +74,13 @@ class MpesaNetworkError(MpesaError):
 
 
 class MpesaTimeoutError(MpesaError):
+    """
+    Exception raised for timeout errors with the M-Pesa API.
+
+    Attributes:
+        message (str): Description of the timeout error.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
                 message: str, 
                 details: Optional[Any],
@@ -54,6 +91,14 @@ class MpesaTimeoutError(MpesaError):
 
 
 class MpesaRateLimitError(MpesaError):
+    """
+    Exception raised when the M-Pesa API rate limit is exceeded.
+
+    Attributes:
+        message (str): Description of the rate limit error.
+        retry_after (Optional[float]): Time in seconds to wait before retrying.
+        details (Optional[Any]): Additional error details or context.
+    """
     def __init__(self, 
                 message: str,
                 retry_after: Optional[float] = None,
@@ -65,6 +110,15 @@ class MpesaRateLimitError(MpesaError):
 
 
 class MpesaApiError(MpesaError):
+    """
+    Exception raised for general API errors returned by the M-Pesa API.
+
+    Attributes:
+        message (str): Description of the API error.
+        code (str): Error code returned by the API.
+        status_code (float): HTTP status code of the response.
+        response_body (Optional[Any]): The full API response body.
+    """
     def __init__(self,
                  message: str,
                  code: str,
@@ -81,15 +135,14 @@ def parse_mpesa_api_error(
         response_body: Any
         ) -> MpesaError:
     """
-    Parse the Mpesa API error response and return an instance of MpesaError
+    Parse an M-Pesa API error response and return the appropriate MpesaError instance.
 
     Args:
-    status_code:(float) HTTP status code of the response
-    response_body:(Any) JSON response body of the API call
-    
+        status_code (float): HTTP status code of the response.
+        response_body (Any): JSON response body of the API call.
+
     Returns:
-    MpesaError: An instance of MpesaError based on the error response
-    
+        MpesaError: An instance of the appropriate MpesaError subclass based on the error response.
     """
     error_message = (
         response_body.get("errorMessage") or

@@ -1,7 +1,31 @@
+
 from ..types.config import MpesaConfig, MpesaPlugin
 from ..utils.auth import MpesaAuth
 from ..utils.callback import MpesaCallbackHandler,CallbackHandlerOptions, ParsedCallbackData
-from ..types.mpesa import STKPushRequest,STKPushResponse,TransactionStatusRequest,TransactionStatusResponse,C2BRegisterRequest,C2BRegisterResponse,STKCallback,C2BCallback,B2CRequest,B2CResponse,B2BRequest,B2BResponse,AccountBalanceRequest,AccountBalanceResponse,GeneralTransactionStatusRequest,GeneralTransactionStatusResponse,ReversalRequest,ReversalResponse,DynamicQRRequest,DynamicQRResponse,ReversalCallback,TransactionStatusCallback,AccountBalanceCallback,B2BCallback,B2CCallback,C2BSimulateRequest,C2BSimulateResponse
+from ..types.mpesa import (
+    STKPushRequest,
+    STKPushResponse,
+    TransactionStatusRequest,
+    TransactionStatusResponse,
+    C2BRegisterRequest,
+    C2BRegisterResponse,
+    STKCallback,
+    C2BCallback,
+    B2CRequest,B2CResponse,
+    B2BRequest,B2BResponse,
+    AccountBalanceRequest,
+    AccountBalanceResponse,
+    GeneralTransactionStatusRequest,
+    GeneralTransactionStatusResponse,
+    ReversalRequest,ReversalResponse,
+    DynamicQRRequest,DynamicQRResponse,
+    ReversalCallback,
+    TransactionStatusCallback,
+    AccountBalanceCallback,
+    B2BCallback,
+    B2CCallback,C2BSimulateRequest,
+    C2BSimulateResponse
+)
 from ..utils.errors import MpesaValidationError,MpesaNetworkError
 from ..utils.retry import RetryOptions 
 from ..utils.ratelimiter import RateLimiter, RedisRateLimiter, RedisLike
@@ -17,27 +41,59 @@ import re
 logger = logging.getLogger(__name__)
 
 class RateLimitOptions(MpesaBaseModel):
-    enabled:Optional[bool]=None
-    max_requests:Optional[float]=None
-    window_ms:Optional[float]=None
-    redis:Optional[RedisLike]=None
+    """
+    Configuration options for rate limiting in the MpesaClient.
+
+    Attributes:
+        enabled (Optional[bool]): Whether rate limiting is enabled.
+        max_requests (Optional[float]): Maximum number of requests allowed per window.
+        window_ms (Optional[float]): Time window in milliseconds.
+        redis (Optional[RedisLike]): Redis-like backend for distributed rate limiting.
+    """
+    enabled: Optional[bool] = None
+    max_requests: Optional[float] = None
+    window_ms: Optional[float] = None
+    redis: Optional[RedisLike] = None
 
 
 class MpesaClientOptions(MpesaBaseModel):
-    callback_options:Optional[CallbackHandlerOptions]=None
-    retry_options:Optional[RetryOptions]=None
-    rate_limit_options:Optional[RateLimitOptions]=None
-    request_timeout:Optional[float]=None
+    """
+    Options for configuring the MpesaClient instance.
+
+    Attributes:
+        callback_options (Optional[CallbackHandlerOptions]): Options for callback handling.
+        retry_options (Optional[RetryOptions]): Options for retry logic.
+        rate_limit_options (Optional[RateLimitOptions]): Options for rate limiting.
+        request_timeout (Optional[float]): Request timeout in milliseconds.
+    """
+    callback_options: Optional[CallbackHandlerOptions] = None
+    retry_options: Optional[RetryOptions] = None
+    rate_limit_options: Optional[RateLimitOptions] = None
+    request_timeout: Optional[float] = None
 
 
 class MpesaClient(MpesaBaseModel):
-    config:MpesaConfig
-    _auth:MpesaAuth
-    _plugins:list[MpesaPlugin]
-    _callback_handler:MpesaCallbackHandler
-    _retry_options:RetryOptions
-    _rate_limiter:Optional[Union[RateLimiter,RedisRateLimiter]]=None
-    _REQUEST_TIMEOUT:float
+    """
+    Main client for interacting with the M-Pesa API.
+
+    This class provides methods for initiating payments, querying transactions, handling callbacks, and more.
+
+    Attributes:
+        config (MpesaConfig): M-Pesa API configuration.
+        _auth (MpesaAuth): Handles authentication with the M-Pesa API.
+        _plugins (list[MpesaPlugin]): List of registered plugins.
+        _callback_handler (MpesaCallbackHandler): Handles callback processing.
+        _retry_options (RetryOptions): Retry configuration options.
+        _rate_limiter (Optional[Union[RateLimiter, RedisRateLimiter]]): Rate limiter instance.
+        _REQUEST_TIMEOUT (float): Request timeout in milliseconds.
+    """
+    config: MpesaConfig
+    _auth: MpesaAuth
+    _plugins: list[MpesaPlugin]
+    _callback_handler: MpesaCallbackHandler
+    _retry_options: RetryOptions
+    _rate_limiter: Optional[Union[RateLimiter, RedisRateLimiter]] = None
+    _REQUEST_TIMEOUT: float
 
     def __init__(self, config:MpesaConfig, options:MpesaClientOptions):
         self.config = config

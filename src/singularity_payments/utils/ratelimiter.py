@@ -8,21 +8,53 @@ from ..types.base import MpesaBaseModel
 
 
 class RateLimiterOptions(MpesaBaseModel):
-    max_requests:float
-    window_ms:float
-    key_prefix:Optional[str]=None
+    """
+    Configuration options for the RateLimiter.
+
+    Attributes:
+        max_requests (float): Maximum number of requests allowed per window.
+        window_ms (float): Time window in milliseconds.
+        key_prefix (Optional[str]): Prefix for rate limit keys.
+    """
+    max_requests: float
+    window_ms: float
+    key_prefix: Optional[str] = None
 
 
 class RateLimitEntry(MpesaBaseModel):
-    count:float
-    reset_at:float
+    """
+    Represents a single rate limit entry for a key.
+
+    Attributes:
+        count (float): Number of requests made in the current window.
+        reset_at (float): Timestamp when the rate limit resets.
+    """
+    count: float
+    reset_at: float
 
 class GetUsageReturnType(MpesaBaseModel):
-    count:float
-    remaining:float
-    reset_at:float
+    """
+    Usage information for a rate-limited key.
+
+    Attributes:
+        count (float): Number of requests made.
+        remaining (float): Number of requests remaining in the window.
+        reset_at (float): Timestamp when the rate limit resets.
+    """
+    count: float
+    remaining: float
+    reset_at: float
 
 class RateLimiter(MpesaBaseModel):
+    """
+    In-memory rate limiter for controlling request rates per key.
+
+    Attributes:
+        key_prefix (str): Prefix for rate limit keys.
+        _store (Dict[str, Any]): Internal storage for rate limit entries.
+        options (RateLimiterOptions): Configuration options for the rate limiter.
+        _cleanup_task (Optional[asyncio.Task]): Background cleanup task.
+    """
     key_prefix: str = "mpesa"
     _store: Dict[str, Any] = {}
     options: RateLimiterOptions
@@ -32,13 +64,17 @@ class RateLimiter(MpesaBaseModel):
         super().__init__(options=options)
         self.start_cleanup()
 
-    def _start_cleanup(self)->None:
-        """Starts the background cleanup task."""
+    def _start_cleanup(self) -> None:
+        """
+        Start the background cleanup task to remove expired rate limit entries.
+        """
         if self._cleanup_task is None or self._cleanup_task.done():
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
         
-    async def _run_cleanup_loop(self)->None:
-        """Background loop to remove expired entries every minute."""
+    async def _run_cleanup_loop(self) -> None:
+        """
+        Background loop that removes expired rate limit entries every minute.
+        """
         while True:
             try:
                 await asyncio.sleep(60)
@@ -52,7 +88,9 @@ class RateLimiter(MpesaBaseModel):
                 print(f"Error in cleanup loop: {e}")
     
     def destroy(self):
-        """Stop cleanup task and clear store."""
+        """
+        Stop the background cleanup task and clear all rate limit entries.
+        """
         if self._cleanup_task:
             self._cleanup_task.cancel()
             self._cleanup_task = None
@@ -62,13 +100,16 @@ class RateLimiter(MpesaBaseModel):
 
     async def check_limit(self, key: str):
         """
-        Check if request is allowed, throws MpesaRateLimitError if exceeded.
+        Check if a request is allowed for the given key, raising an error if the rate limit is exceeded.
+
         Args:
-            key(str): Unique identifier for the rate limit (e.g. phone number, IP address)
+            key (str): Unique identifier for the rate limit (e.g., phone number, IP address).
+
         Raises:
-            MpesaRateLimitError: If rate limit is exceeded
+            MpesaRateLimitError: If the rate limit is exceeded.
+
         Returns:
-            None: If request is allowed
+            None: If the request is allowed.
         """
         full_key = f"{self.options.key_prefix}:{key}"
         now = time.time()
@@ -87,11 +128,13 @@ class RateLimiter(MpesaBaseModel):
 
     def get_usage(self, key: str) -> GetUsageReturnType:
         """
-        Get current usage for a key
+        Get the current usage statistics for a given key.
+
         Args:
-            key(str): Unique identifier for the rate limit (e.g. phone number, IP address)
+            key (str): Unique identifier for the rate limit (e.g., phone number, IP address).
+
         Returns:
-            GetUsageReturnType: Object with current usage information
+            GetUsageReturnType: Object containing current usage information.
         """
         full_key = f"{self.options.key_prefix}:{key}"
         entry = self._store.get(full_key)
@@ -102,9 +145,10 @@ class RateLimiter(MpesaBaseModel):
 
     def reset(self, key: str):
         """
-        Reset rate limit for a key.
+        Reset the rate limit for a specific key.
+
         Args:
-            key(str): Unique identifier for the rate limit (e.g. phone number, IP address)
+            key (str): Unique identifier for the rate limit (e.g., phone number, IP address).
         """
         full_key = f"{self.options.key_prefix}:{key}"
         if full_key in self._store:
@@ -112,28 +156,54 @@ class RateLimiter(MpesaBaseModel):
 
     def reset_all(self):
         """
-        Clear all rate limits.
+        Clear all rate limits for all keys.
         """
         self._store.clear()
            
 
 
 class RedisLikeSet(MpesaBaseModel):
-    key:str
-    value:str
-    mode:str
-    duration:str
+    """
+    Data structure for setting a value in a Redis-like store.
+
+    Attributes:
+        key (str): The key to set.
+        value (str): The value to set.
+        mode (str): The mode for setting (e.g., 'EX' for expire).
+        duration (str): Duration for the key to expire.
+    """
+    key: str
+    value: str
+    mode: str
+    duration: str
 
 class RedisLike(MpesaBaseModel):
-    get:Callable[[str], Optional[str]]
-    set:Callable[[RedisLikeSet], Any]
-    incr:Callable[[str], float]
-    expire:Callable[[str, float], Any]
+    """
+    Interface for a Redis-like key-value store.
+
+    Attributes:
+        get (Callable[[str], Optional[str]]): Function to get a value by key.
+        set (Callable[[RedisLikeSet], Any]): Function to set a value.
+        incr (Callable[[str], float]): Function to increment a value by key.
+        expire (Callable[[str, float], Any]): Function to set key expiration.
+    """
+    get: Callable[[str], Optional[str]]
+    set: Callable[[RedisLikeSet], Any]
+    incr: Callable[[str], float]
+    expire: Callable[[str, float], Any]
 
 class RedisRateLimiter(MpesaBaseModel):
-    _options:RateLimiterOptions
-    _redis:RedisLike
-    key_prefix:str="mpesa"
+    """
+    Rate limiter implementation using a Redis-like backend for distributed environments.
+
+    Attributes:
+        _options (RateLimiterOptions): Configuration options for the rate limiter.
+        _redis (RedisLike): Redis-like backend for storage.
+        key_prefix (str): Prefix for rate limit keys.
+    """
+    _options: RateLimiterOptions
+    _redis: RedisLike
+    key_prefix: str = "mpesa"
 
 
     def __init__(self, name, redis:RedisLike, **options):
@@ -167,13 +237,14 @@ class RedisRateLimiter(MpesaBaseModel):
                 }
             )
         
-    async def reset(self, key:str):
+    async def reset(self, key: str):
         """
-        Reset rate limit for a key.
+        Reset the rate limit for a specific key in the Redis backend.
+
         Args:
-            key(str): Unique identifier for the rate limit (e.g. phone number, IP address)
-            """
-        full_key=f"{self.options.key_prefix}:{key}"
+            key (str): Unique identifier for the rate limit (e.g., phone number, IP address).
+        """
+        full_key = f"{self.options.key_prefix}:{key}"
         await self.redis.set(key=full_key, value="0", mode="EX", duration=0)
 
 
