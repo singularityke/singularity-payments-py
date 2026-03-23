@@ -31,7 +31,7 @@ class ResultParametersType(MpesaBaseModel):
     Attributes:
         result_parameter (List[ResultParameterItem]): List of result parameter items.
     """
-    result_parameter: List[ResultParameterItem] = Field(alias="ResultParamter")
+    result_parameter: List[ResultParameterItem] = Field(alias="ResultParameter")
 
 class CallbackResult(MpesaBaseModel):
     """
@@ -63,7 +63,7 @@ class STKPushRequest(MpesaBaseModel):
     Attributes:
         amount (float): Amount to be transacted.
         phone_number (str): Customer's phone number.
-        account_reference (str): Reference for the account.
+          account_reference (str): Reference for the account.
         transaction_desc (str): Description of the transaction.
         callback_url (AnyUrl): URL to receive payment callback.
     """
@@ -277,6 +277,15 @@ class B2CReferenceItem(MpesaBaseModel):
     value: str = Field(alias="Value")
 
 
+
+class B2CCallbackResultParameterType(MpesaBaseModel):
+    key: str = Field(alias="Key")
+    value: Union[str, int, float] = Field(alias="Value")
+
+class B2CResultParameterType(MpesaBaseModel):
+    result_parameter: List[B2CCallbackResultParameterType]= Field(alias="ResultParameter")
+
+
 class B2CCallbackResult(MpesaBaseModel):
     result_type: int= Field(alias="ResultType")
     result_code: int= Field(alias="ResultCode")
@@ -284,7 +293,7 @@ class B2CCallbackResult(MpesaBaseModel):
     originator_conversation_id: str= Field(alias="OriginatorConversationID")
     conversation_id: str= Field(alias="ConversationID")
     transaction_id: str= Field(alias="TransactionID")
-    result_parameters: Optional[ResultParametersType] = Field(None, alias="ResultParameters")
+    result_parameters: Optional[B2CResultParameterType] = Field(None, alias="ResultParameters")
     reference_data: Optional[B2CReferenceItem] = Field(None, alias="ReferenceData")
 
 
