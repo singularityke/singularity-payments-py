@@ -77,8 +77,8 @@ Full documentation is available at [this link](https://payments-js.singularity.c
 
 ## Support
 
--  Email:  wambua_kelvin@outlook.com
--  Issues: [GitHub Issues](https://github.com/singularity.co.ke/singularity-payments-js/issues)
+-  Email:  mtume.owino@singularity.co.ke
+-  Issues: [GitHub Issues](https://github.com/singularity.co.ke/singularity-payments-py/issues)
 -  Docs: [Documentation](https://payments-js.singularity.co.ke)
 
 ## License
