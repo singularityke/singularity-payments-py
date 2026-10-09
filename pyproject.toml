@@ -1,6 +1,6 @@
 [project]
 name = "singularity-payments"
-version = "0.1.0"
+version = "1.0.0"
 description = "SDK for Mpesa payments."
 readme = "README.md"
 authors = [
