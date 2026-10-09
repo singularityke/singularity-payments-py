@@ -1,5 +1,5 @@
 import pytest
-from singularity_payments.tests.fixtures.callback import (
+from singularity_payments.tests.fixtures.callbacks import (
     successfull_stk_callback, failed_stk_callback, cancelled_stk_callback,
     mock_b2c_callback, mock_c2b_callback
 )
@@ -76,13 +76,13 @@ class TestIPValidation:
     def test_ip_validation(self, valid_ip):
         options = CallbackHandlerOptions(validate_ip=True)
         handler = MpesaCallbackHandler(options)
-        
+
         assert handler.validate_callback_ip(valid_ip)
 
     @pytest.mark.parametrize("ip", [
-        "192.168.1.1", 
-        "10.0.0.1", 
-        "172.16.0.1", 
+        "192.168.1.1",
+        "10.0.0.1",
+        "172.16.0.1",
         "8.8.8.8"
     ])
     def test_ip_invalidation(self, ip):
@@ -138,6 +138,7 @@ class TestCallbackHandlers:
         called_duplicate = {"called": False}
         async def is_duplicate(parsed):
             called_duplicate["called"] = True
+            return True
         called_success = {"called": False}
         async def on_success(parsed):
             called_success

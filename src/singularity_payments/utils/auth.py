@@ -2,7 +2,7 @@ from pydantic import PrivateAttr, Field
 from ..types.config import MpesaConfig
 from .errors import MpesaNetworkError, parse_mpesa_api_error, MpesaAuthError, MpesaTimeoutError, MpesaError
 import time
-import datetime
+from datetime import datetime
 import logging
 import base64
 import httpx
@@ -48,7 +48,7 @@ class MpesaAuth(MpesaBaseModel):
             str: The base URL for API requests.
         """
         return ENDPOINTS[self.config.environment]
-    
+
     def get_password(self) -> str:
         """
         Generate a base64-encoded password for STK Push authentication.
@@ -60,7 +60,7 @@ class MpesaAuth(MpesaBaseModel):
         password_str = f"{self.config.short_code}{self.config.passkey}{timestamp}"
         password = base64.b64encode(password_str.encode()).decode()
         return password
-    
+
 
     @retry(
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -95,7 +95,7 @@ class MpesaAuth(MpesaBaseModel):
 
                 if response.status_code != 200:
                     try:
-                        error_body = await response.json()
+                        error_body = response.json()
                     except Exception:
                         error_body = {}
                     raise parse_mpesa_api_error(
@@ -104,7 +104,7 @@ class MpesaAuth(MpesaBaseModel):
                     )
 
                 data = response.json()
-                access_token = data.get("access_token")
+                access_token = data["access_token"]
 
                 if not access_token:
                     raise MpesaAuthError("No access token in response", data)
@@ -112,10 +112,11 @@ class MpesaAuth(MpesaBaseModel):
                 self._token = access_token
                 # Cache for 50 minutes (3000 seconds) in milliseconds
                 self._token_expiry = int(time.time() * 1000) + (50 * 60 * 1000)
-                return self._token
+                if self._token:
+                    return self._token
 
             except httpx.TimeoutException:
-                raise MpesaTimeoutError("Request timed out while getting access token")
+                raise MpesaTimeoutError(message="Request timed out while getting access token", details=None)
 
             except Exception as e:
                 if isinstance(e, MpesaError):

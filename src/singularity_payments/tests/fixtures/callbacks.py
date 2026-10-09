@@ -1,29 +1,29 @@
 from singularity_payments.types.mpesa import STKCallback, C2BCallback, B2CCallback
 
 def successfull_stk_callback():
-    return STKCallback(
-        body={
-    "stkCallback": {
-      "MerchantRequestID": "mock-merchant-123",
-      "CheckoutRequestID": "mock-checkout-456",
-      "ResultCode": 0,
-      "ResultDesc": "The service request is processed successfully.",
-      "CallbackMetadata": {
-        "Item": [
-          { "Name": "Amount", "Value": 1000 },
-          { "Name": "MpesaReceiptNumber", "Value": "NLJ7RT61SV" },
-          { "Name": "TransactionDate", "Value": 20251222144900 },
-          { "Name": "PhoneNumber", "Value": 254712345678 },
-        ],
-      },
-    },
-  },
+    return STKCallback.model_validate({
+        "Body":{
+              "stkCallback": {
+                "MerchantRequestID": "mock-merchant-123",
+                "CheckoutRequestID": "mock-checkout-456",
+                "ResultCode": 0,
+                "ResultDesc": "The service request is processed successfully.",
+                "CallbackMetadata": {
+                  "Item": [
+                    { "Name": "Amount", "Value": 1000 },
+                    { "Name": "MpesaReceiptNumber", "Value": "NLJ7RT61SV" },
+                    { "Name": "TransactionDate", "Value": 20251222144900 },
+                    { "Name": "PhoneNumber", "Value": 254712345678 },
+                  ],
+                },
+              },
+            },}
     )
 
 
 def failed_stk_callback():
-    return STKCallback(
-    body = {
+    return STKCallback.model_validate({
+    "Body":{
     "stkCallback": {
       "MerchantRequestID": "mock-merchant-789",
       "CheckoutRequestID": "mock-checkout-012",
@@ -31,12 +31,12 @@ def failed_stk_callback():
       "ResultDesc": "Insufficient funds in M-Pesa account",
     },
   },
-)
+})
 
 
 def cancelled_stk_callback():
-    return STKCallback(
-    body = {
+    return STKCallback.model_validate({
+    "Body":{
     "stkCallback": {
       "MerchantRequestID": "mock-merchant-789",
       "CheckoutRequestID": "mock-checkout-012",
@@ -44,7 +44,7 @@ def cancelled_stk_callback():
       "ResultDesc": "Request cancelled by user",
     },
   },
-)
+})
 
 
 def mock_c2b_callback():
@@ -59,13 +59,13 @@ def mock_c2b_callback():
       "FirstName":"John",
       "MiddleName":"K",
       "LastName":"Doe"
-        
+
     }
     return C2BCallback(**result)
 
 def mock_b2c_callback():
-  return B2CCallback(
-    Result={
+  return B2CCallback.model_validate({
+    "Result":{
         "ResultType": 0,
         "ResultCode": 0,
         "ResultDesc": "The service request is processed successfully.",
@@ -80,4 +80,6 @@ def mock_b2c_callback():
         { "Key": "B2CChargesPaidAccountAvailableFunds", "Value": 50 },
       ],
     },
-    })
+    }
+  }
+)

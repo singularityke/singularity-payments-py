@@ -19,17 +19,17 @@ class MpesaConfig(MpesaBaseModel):
         initiator_name (Optional[str]): Name of the API initiator.
         security_credential (Optional[str]): Encrypted security credential for the initiator.
     """
-    consumer_key: str= Field(alias="ConsumerKey")
-    consumer_secret: str= Field(alias="ConsumerSecret")
+    consumer_key: str= Field(alias="consumerKey")
+    consumer_secret: str= Field(alias="consumerSecret")
     passkey: str
     short_code: str= Field(alias="shortcode")
     environment: str
     callback_url: Optional[str] = Field(None, alias="callbackUrl")
     timeout_url: Optional[str] = Field(None, alias="timeoutUrl")
     result_url: Optional[str] = Field(None, alias="resultUrl")
-    initiator_name: Optional[str] =Field(alias="initiatorName")
+    initiator_name: Optional[str] = Field(None, alias="initiatorName")
     security_credential: Optional[str] = Field(None, alias="securityCredential")
-   
+
 
 
 class MpesaPlugin(MpesaBaseModel):
@@ -42,4 +42,3 @@ class MpesaPlugin(MpesaBaseModel):
     """
     name: str
     init: Callable[[Any], None]
-    

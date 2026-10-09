@@ -1,7 +1,13 @@
 
 from ..types.config import MpesaConfig, MpesaPlugin
 from ..utils.auth import MpesaAuth
-from ..utils.callback import MpesaCallbackHandler,CallbackHandlerOptions, ParsedCallbackData
+from ..utils.callback import (
+    MpesaCallbackHandler,
+    CallbackHandlerOptions,
+    ParsedCallbackData,
+    ParsedC2BCallback,
+    CreateCallbackResponseReturnType,
+)
 from ..types.mpesa import (
     STKPushRequest,
     STKPushResponse,
@@ -26,12 +32,16 @@ from ..types.mpesa import (
     B2CCallback,C2BSimulateRequest,
     C2BSimulateResponse
 )
-from ..utils.errors import MpesaValidationError,MpesaNetworkError
-from ..utils.retry import RetryOptions 
+from ..utils.errors import (
+    MpesaValidationError,
+    MpesaNetworkError,
+    MpesaTimeoutError,
+    parse_mpesa_api_error,
+)
+from ..utils.retry import RetryOptions, retry_with_backoff
 from ..utils.ratelimiter import RateLimiter, RedisRateLimiter, RedisLike
 from ..types.base import MpesaBaseModel
 from typing import Optional, Any, Union
-from tenacity import stop_after_attempt, AsyncRetrying, wait_exponential, retry_if_exception_type, before_sleep_log
 import httpx
 import logging
 import math
@@ -91,30 +101,42 @@ class MpesaClient(MpesaBaseModel):
     _auth: MpesaAuth
     _plugins: list[MpesaPlugin]
     _callback_handler: MpesaCallbackHandler
-    _retry_options: RetryOptions
+    _retry_options: Optional[RetryOptions]
     _rate_limiter: Optional[Union[RateLimiter, RedisRateLimiter]] = None
     _REQUEST_TIMEOUT: float
 
-    def __init__(self, config:MpesaConfig, options:MpesaClientOptions):
-        self.config = config
-        self._auth=MpesaAuth(config=config)
-        self._callback_handler=MpesaCallbackHandler(options=options.callback_options)
-        self._retry_options=options.retry_options or {}
-        self._REQUEST_TIMEOUT=options.request_timeout or 30000
+    def __init__(
+        self,
+        config: MpesaConfig,
+        options: Optional[MpesaClientOptions] = None,
+    ):
+        if options is None:
+            options = MpesaClientOptions()
+
+        super().__init__(config=config)
+        self._auth = MpesaAuth(config=config)
+        self._callback_handler = MpesaCallbackHandler(options=options.callback_options)
+        self._retry_options = options.retry_options
+        self._REQUEST_TIMEOUT = options.request_timeout or 30000
+        self._plugins = []
        
 
-        rate_limit_opts = getattr(options, 'rate_limit_options', None)
-        if options.rate_limit_options.enabled is None:
+        # Rate limiting is enabled by default; pass enabled=False to disable it.
+        rate_limit_options = options.rate_limit_options
+        if rate_limit_options is None or rate_limit_options.enabled is not False:
             rate_limit_opts = {
-                'max_requests':getattr(rate_limit_opts,'max_requests', 100) or 100,
-                'window_ms':getattr(rate_limit_opts, 'window_ms', 60000) or 60000,
-            }
-
-            if getattr(rate_limit_opts, "redis", None) is not None:
-                self._rate_limiter = RedisRateLimiter(
-                    options=rate_limit_opts.redis,
-                    rate_limit_options=rate_limit_opts
+                "max_requests": (
+                    rate_limit_options.max_requests if rate_limit_options else None
                 )
+                or 100,
+                "window_ms": (
+                    rate_limit_options.window_ms if rate_limit_options else None
+                )
+                or 60000,
+            }
+            redis = rate_limit_options.redis if rate_limit_options else None
+            if redis is not None:
+                self._rate_limiter = RedisRateLimiter(redis, rate_limit_opts)
             else:
                 self._rate_limiter = RateLimiter(options=rate_limit_opts)
 
@@ -122,43 +144,62 @@ class MpesaClient(MpesaBaseModel):
 
     async def _make_request(
         self,
-        endpoint:str,
-        pay_load:Any,
-        rate_limit_key:Optional[str]=None
-    ):
-        retrier = AsyncRetrying(
-            stop=stop_after_attempt(self._retry_options.get('max_retries', 3)),
-            wait=wait_exponential(multiplier=1, min=1, max=10), # Exponential backoff
-            retry=retry_if_exception_type((MpesaNetworkError, httpx.TimeoutException)),
-            before_sleep=before_sleep_log(logger, logging.WARNING),
-            reraise=True # Ensures the final error is thrown after all attempts fail
-        )
-        async for attempt in retrier:
-            with attempt:
-                if self._rate_limiter and rate_limit_key:
-                    await self._rate_limiter.check_limit(rate_limit_key)
+        endpoint: str,
+        pay_load: Any,
+        rate_limit_key: Optional[str] = None,
+    ) -> Any:
+        """
+        Make an authenticated POST request to the M-Pesa API.
 
-                token = await self.auth.get_access_token()
-                base_url = self.auth.get_base_url()
+        Handles rate limiting, access-token retrieval, retries with backoff and
+        mapping of API/network errors to ``MpesaError`` subclasses.
 
-                async with httpx.AsyncClient(timeout=self._REQUEST_TIMEOUT/1000) as client:
+        Args:
+            endpoint (str): API path, e.g. ``/mpesa/stkpush/v1/processrequest``.
+            pay_load (Any): JSON-serialisable request body.
+            rate_limit_key (Optional[str]): Key used for per-endpoint rate limiting.
+
+        Returns:
+            Any: The decoded JSON response body.
+
+        Raises:
+            MpesaTimeoutError: If the request times out.
+            MpesaNetworkError: On other network failures (retryable).
+            MpesaError: Mapped API error returned by M-Pesa.
+        """
+        async def _do_request() -> Any:
+            if self._rate_limiter and rate_limit_key:
+                await self._rate_limiter.check_limit(rate_limit_key)
+
+            token = await self._auth.get_access_token()
+            base_url = self._auth.get_base_url()
+
+            async with httpx.AsyncClient(
+                timeout=self._REQUEST_TIMEOUT / 1000
+            ) as client:
+                try:
                     response = await client.post(
                         f"{base_url}{endpoint}",
                         json=pay_load,
-                        headers={"Authorization":f"Bearer {token}"}
+                        headers={"Authorization": f"Bearer {token}"},
+                    )
+                except httpx.TimeoutException:
+                    raise MpesaTimeoutError(f"Request timed out for {endpoint}")
+                except httpx.RequestError as e:
+                    raise MpesaNetworkError(
+                        f"Network error on {endpoint}: {e}", True, e
                     )
 
-                    if response.status_code != 200:
-                        try:
-                            error_body = await response.json()
-                        except Exception:
-                            error_body = {}
-                        raise self.parse_mpesa_api_error(
-                            response.status_code,
-                            error_body
-                    )
+            if response.status_code != 200:
+                try:
+                    error_body = response.json()
+                except Exception:
+                    error_body = {}
+                raise parse_mpesa_api_error(response.status_code, error_body)
 
-                    return response.json()
+            return response.json()
+
+        return await retry_with_backoff(_do_request, self._retry_options)
     
 
 
@@ -172,14 +213,14 @@ class MpesaClient(MpesaBaseModel):
                 formatted(str): Validated phone number
             """
 
-            formatted = re.sub(r'[^\d]', '', phone)
-            if formatted.startswith('0'):
-                formatted = "254"+formatted[1:]
-            elif not formatted.startswith('0'):
-                formatted = "254"+formatted
+            formatted = re.sub(r"[\s\-\+]", "", phone)
+            if formatted.startswith("0"):
+                formatted = "254" + formatted[1:]
+            elif not formatted.startswith("254"):
+                formatted = "254" + formatted
             
 
-            if not re.match(r'^254[17]\d{8}$'):
+            if not re.match(r"^254[17]\d{8}$", formatted):
                 raise MpesaValidationError(f"Invalid phone number format: {phone}. Must be a valid Kenyan number.")
             
 
@@ -221,8 +262,8 @@ class MpesaClient(MpesaBaseModel):
             phone = self._validate_and_format_phone(request.phone_number)
             payload = {
                 "BusinessShortCode": self.config.short_code,
-                "Password": self.auth.get_password(),
-                "Timestamp": self.auth.timestamp,
+                "Password": self._auth.get_password(),
+                "Timestamp": self._auth.get_timestamp(),
                 "TransactionType": "CustomerPayBillOnline",
                 "Amount": math.floor(request.amount),
                 "PartyA": phone,
@@ -259,12 +300,12 @@ class MpesaClient(MpesaBaseModel):
             
             payload = {
                 "BusinessShortCode": self.config.short_code,
-                "Password": self.auth.get_password(),
-                "Timestamp": self.auth.get_timestamp(),
+                "Password": self._auth.get_password(),
+                "Timestamp": self._auth.get_timestamp(),
                 "CheckoutRequestID":request.checkout_request_id
             }
 
-            response_data = self._make_request(
+            response_data = await self._make_request(
                 endpoint="/mpesa/stkpushquery/v1/query",
                 pay_load=payload,
                 rate_limit_key=f"query:{request.checkout_request_id}"
@@ -318,7 +359,7 @@ class MpesaClient(MpesaBaseModel):
                 self,
                 callback:STKCallback,
                 ip_address:Optional[str]=None
-        )->dict:
+        )->CreateCallbackResponseReturnType:
             """
             Handle an incoming STK Push callback.
             Args:
@@ -375,7 +416,7 @@ class MpesaClient(MpesaBaseModel):
             if request.remarks is None or len(request.remarks) > 100:
                 raise MpesaValidationError("B2C remarks must be between 1 and 100 characters.")
 
-            phone = self.validate_and_format_phone(request.phone_number)
+            phone = self._validate_and_format_phone(request.phone_number)
             payload = {
                 "InitiatorName": self.config.initiator_name,
                 "SecurityCredential": self.config.security_credential,
@@ -426,7 +467,7 @@ class MpesaClient(MpesaBaseModel):
                 "PartyA":self.config.short_code,
                 "PartyB":request.party_b,
                 "SenderIdentifierType":request.sender_identifier_type,
-                "ReceiverIdentifierType":request.receiver_identifier_type,
+                "RecieverIdentifierType":request.receiver_identifier_type,
                 "AccountReference":request.account_reference,
                 "Remarks":request.remarks,
                 "QueueTimeOutURL":request.timeout_url or self.config.timeout_url,
@@ -441,7 +482,9 @@ class MpesaClient(MpesaBaseModel):
 
             return B2BResponse(**response_data)
 
-    async def account_balance(self, request:AccountBalanceRequest)->AccountBalanceResponse:  
+    async def account_balance(
+        self, request: Optional[AccountBalanceRequest] = None
+    ) -> AccountBalanceResponse:  
                 """
                 Check account balance
                 Args:
@@ -449,6 +492,9 @@ class MpesaClient(MpesaBaseModel):
                 Returns:
                     response_data(AccountBalanceResponse): Account balance response object
                 """         
+                if request is None:
+                    request = AccountBalanceRequest()
+
                 payload = {
                     "Initiator":self.config.initiator_name,
                     "SecurityCredential":self.config.security_credential,
@@ -518,8 +564,9 @@ class MpesaClient(MpesaBaseModel):
                 "TransactionID":request.transaction_id,
                 "Amount":math.floor(request.amount),
                 "ReceiverParty":request.receiver_party or self.config.short_code,
-                "ReceiverIdentifierType":request.receiver_identifier_type or "11",
+                "RecieverIdentifierType":request.receiver_identifier_type or "11",
                 "Remarks":request.remarks or "Transaction reversal",
+                "Occasion":request.occasion or "",
                 "QueueTimeOutURL":request.timeout_url or self.config.timeout_url,
                 "ResultURL":request.result_url or self.config.result_url,
             }
@@ -568,7 +615,7 @@ class MpesaClient(MpesaBaseModel):
             return DynamicQRResponse(**response_data)
         
 
-    async def handle_c2b_confirmation(self, callback:C2BCallback)->dict:
+    async def handle_c2b_confirmation(self, callback:C2BCallback)->CreateCallbackResponseReturnType:
             """
             Handle C2B confirmation request.
             Args:
@@ -599,7 +646,7 @@ class MpesaClient(MpesaBaseModel):
 
 
 
-    async def parse_c2b_callback(self, callback:C2BCallback)->ParsedCallbackData:
+    async def parse_c2b_callback(self, callback:C2BCallback)->ParsedC2BCallback:
             """
             Parse C2B callback without handling (for testing)
             Args:
@@ -671,7 +718,7 @@ class MpesaClient(MpesaBaseModel):
             
             phone = self._validate_and_format_phone(request.phone_number)
             payload = {
-                "ShortCode": self.config.short_code,
+                "ShortCode": request.short_code or self.config.short_code,
                 "CommandID": request.command_id or "CustomerPayBillOnline",
                 "Amount": math.floor(request.amount),
                 "Msisdn": phone,
@@ -686,9 +733,6 @@ class MpesaClient(MpesaBaseModel):
             
             return C2BSimulateResponse(**response_data)
         
-
-
-        # NOTE MIGHT NEED TO ADD AWAIT BEFORE self._make_request IN ALL THE ABOVE FUNCTIONS
 
 
     async def handle_b2b_callback(self, callback:B2BCallback):
@@ -746,20 +790,24 @@ class MpesaClient(MpesaBaseModel):
             return self._callback_handler.create_callback_response(False, "Processing failed.")
 
 
-    async def handle_reversal_callback(self, callback:ReversalCallback):
-         """
+    async def handle_reversal_callback(
+        self, callback: ReversalCallback
+    ) -> CreateCallbackResponseReturnType:
+        """
         Handle reversal callback.
+
         Args:
             callback(ReversalCallback): Reversal callback object
+
         Returns:
-            response_data(CreateCallbackResponseReturnType): Mpesa compliant response
+            CreateCallbackResponseReturnType: Mpesa compliant response.
         """
-         try:
+        try:
             parsed = self._callback_handler.parse_reversal_callback(callback)
             if self._callback_handler.options.on_reversal_result:
                 await self._callback_handler.options.on_reversal_result(parsed)
             return self._callback_handler.create_callback_response(parsed.is_success)
-         except Exception as e:
+        except Exception as e:
             logger.exception(f"Reversal Callback Error: {e}")
             return self._callback_handler.create_callback_response(False, "Processing failed.")
          

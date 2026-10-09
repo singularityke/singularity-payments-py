@@ -13,24 +13,21 @@ B2BCommandID = Literal[
 
 BalanceIdentifierType = Literal["1", "2", "4"]  # 1=MSISDN, 2=Till, 4=Paybill
 
-class ResultParameterItem(MpesaBaseModel):
-    """
-    Represents a single result parameter item returned in M-Pesa API responses.
+class ReferenceItem(MpesaBaseModel):
+    Key:str= Field(alias='key')
+    Value:str = Field(alias='value')
 
-    Attributes:
-        key (str): The parameter key (aliased as 'Key').
-        value (Union[str, int, float]): The parameter value (aliased as 'Value').
-    """
-    name: str = Field(alias="Name")
+class ReferenceData(MpesaBaseModel):
+    reference_item: ReferenceItem = Field(alias='ReferenceItem')
+
+
+
+
+class ResultParameterItem(MpesaBaseModel):
+    key: str = Field(alias="Key")
     value: Union[str, int, float] = Field(alias="Value")
 
-class ResultParametersType(MpesaBaseModel):
-    """
-    Represents a list of result parameter items in M-Pesa API responses.
-
-    Attributes:
-        result_parameter (List[ResultParameterItem]): List of result parameter items.
-    """
+class ResultParameters(MpesaBaseModel):
     result_parameter: List[ResultParameterItem] = Field(alias="ResultParameter")
 
 class CallbackResult(MpesaBaseModel):
@@ -52,7 +49,8 @@ class CallbackResult(MpesaBaseModel):
     originator_conversation_id: str= Field(alias="OriginatorConversationID")
     conversation_id: str= Field(alias="ConversationID")
     transaction_id: str= Field(alias="TransactionID")
-    result_parameters: Optional[ResultParametersType] = Field(None,alias="ResultParameters")
+    result_parameters: Optional[ResultParameters] = Field(None,alias="ResultParameters")
+    reference_data: Optional[ReferenceData] = Field(None, alias="ReferenceData")
 
 # --- STK Push (M-Pesa Express) ---
 
@@ -89,16 +87,32 @@ class STKPushResponse(MpesaBaseModel):
     response_code: str= Field(alias="ResponseCode")
     response_description: str= Field(alias="ResponseDescription")
     customer_message: str= Field(alias="CustomerMessage")
-    
+
+
+class CallbackMetadataItem(MpesaBaseModel):
+    """
+    A single item inside an STK callback's metadata list.
+
+    Note:
+        STK metadata items use ``Name``/``Value`` keys, unlike the
+        ``Key``/``Value`` result parameters used by B2C/B2B callbacks.
+
+    Attributes:
+        name (str): Metadata field name, e.g. ``Amount`` or ``MpesaReceiptNumber``.
+        value (Union[str, int, float]): The metadata value.
+    """
+    name: str = Field(alias="Name")
+    value: Union[str, int, float] = Field(alias="Value")
+
 
 class CallbackMetadataType(MpesaBaseModel):
     """
     Metadata section of an STK callback, containing additional transaction details.
 
     Attributes:
-        item (List[ResultParameterItem]): List of metadata items.
+        item (List[CallbackMetadataItem]): List of metadata items.
     """
-    item: List[ResultParameterItem]= Field(alias="Item")
+    item: List[CallbackMetadataItem]= Field(alias="Item")
 
 class STKCallbackDetails(MpesaBaseModel):
     """
@@ -131,9 +145,10 @@ class STKCallback(MpesaBaseModel):
     Top-level model for an STK callback received from the M-Pesa API.
 
     Attributes:
-        body (STKResponseBody): The body of the callback.
+        body (STKResponseBody): The body of the callback, containing the
+            ``stkCallback`` payload.
     """
-    body: STKResponseBody= Field(alias="Body")
+    body: STKResponseBody = Field(alias="Body")
 
 # --- C2B (Customer to Business) ---
 
@@ -203,17 +218,19 @@ class C2BSimulateRequest(MpesaBaseModel):
     Model for simulating a C2B (Customer to Business) payment request.
 
     Attributes:
-        short_code (str): Business short code.
+        short_code (Optional[str]): Business short code. Falls back to the
+            client's configured short code when omitted.
         amount (float): Amount to simulate.
-        msisdn (str): Customer's phone number.
+        phone_number (str): Customer's phone number.
         bill_ref_number (str): Bill reference number.
-        command_id (Literal): Command ID for the simulation.
+        command_id (Optional[Literal]): Command ID for the simulation. Falls
+            back to ``CustomerPayBillOnline`` when omitted.
     """
-    short_code: str= Field(alias="ShortCode")
-    amount: float= Field(alias="Amount")
-    msisdn: str= Field(alias="MSISDN")
-    bill_ref_number: str= Field(alias="BillRefNumber")
-    command_id: Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]= Field(alias="CommandID")
+    short_code: Optional[str] = Field(None, alias="ShortCode")
+    amount: float = Field(alias="Amount")
+    phone_number: str = Field(alias="phoneNumber")
+    bill_ref_number: str = Field(alias="BillRefNumber")
+    command_id: Optional[Literal["CustomerPayBillOnline", "CustomerBuyGoodsOnline"]] = Field(None, alias="CommandID")
 
 class C2BSimulateResponse(MpesaBaseModel):
     """
@@ -263,7 +280,7 @@ class B2CRequest(MpesaBaseModel):
     remarks:str
     occasion:Optional[str]=None
     result_url:Optional[str]=Field(None, alias="resultUrl")
-    timeout_url:Optional[str]=Field(None, alias="timoutUrl")
+    timeout_url: Optional[str] = Field(None, alias="timeoutUrl")
 
 
 class B2CResponse(MpesaBaseModel):
@@ -326,7 +343,7 @@ class AccountBalanceCallback(MpesaBaseModel):
 class GeneralTransactionStatusRequest(MpesaBaseModel):
     transaction_id: str= Field(alias="TransactionID")
     party_a: Optional[str]= Field(None, alias="partyA")
-    identidier_type:Optional[Literal["1", '2', "4"]]= Field(None, alias="identifierType")
+    identifier_type: Optional[Literal["1", "2", "4"]] = Field(None, alias="identifierType")
     remarks: Optional[str]=None
     occasion:Optional[str]= None
     result_url: Optional[str] = Field(None, alias="resultUrl")

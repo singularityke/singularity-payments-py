@@ -1,13 +1,14 @@
 import logging
 from datetime import datetime
-from typing import Any, Callable, ClassVar, Optional
+from typing import Any, Awaitable, Callable, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from ..types.base import MpesaBaseModel
 from ..types.mpesa import (
     AccountBalanceCallback,
     B2BCallback,
+    B2CCallback,
     C2BCallback,
     CallbackMetadataType,
     ReversalCallback,
@@ -30,17 +31,17 @@ class ParsedCallbackData(MpesaBaseModel):
 
 
 class ParsedC2BCallback(MpesaBaseModel):
-    transaction_type: str = Field(alias="transactionType")
-    transaction_id: str= Field(alias="transactionId")
-    transaction_time: str= Field(alias="transactionTime")
+    transaction_type: str = Field(alias="TransactionType")
+    transaction_id: str = Field(alias="TransactionId")
+    transaction_time: str = Field(alias="TransactionTime")
     amount: float
-    business_short_code: str= Field(alias="businessShortCode")
-    bill_ref_number: str= Field(alias="billRefNumber")
-    invoice_number: Optional[str] = Field(None, alias="invoiceNumber")
-    msisdn: str
-    first_name: Optional[str] = Field(None, alias="firstName")
-    middle_name: Optional[str] = Field(None, alias="middleName")
-    last_name: Optional[str] = Field(None, alias="lastName")
+    business_short_code: str = Field(alias="BusinessShortCode")
+    bill_ref_number: str = Field(alias="BillRefNumber")
+    invoice_number: Optional[str] = Field(None, alias="InvoiceNumber")
+    msisdn: str = Field(alias="MSISDN")
+    first_name: Optional[str] = Field(None, alias="FirstName")
+    middle_name: Optional[str] = Field(None, alias="MiddleName")
+    last_name: Optional[str] = Field(None, alias="LastName")
 
 
 class OnB2CResultType(MpesaBaseModel):
@@ -85,7 +86,7 @@ class OnTransactionStatusResultType(MpesaBaseModel):
 class ParseReversalCallbackReturnType(MpesaBaseModel):
     is_success: bool
     transaction_id: Optional[str] = None
-    error_message: Optional[str]
+    error_message: Optional[str] = None
 
 
 class OnReversalResultType(MpesaBaseModel):
@@ -121,8 +122,8 @@ class ParseB2BCallbackReturnType(MpesaBaseModel):
 
 
 class CreateCallbackResponseReturnType(MpesaBaseModel):
-    result_code: float
-    result_desc: str
+    result_code: int = Field(alias="ResultCode")
+    result_desc: str = Field(alias="ResultDesc")
 
 
 class ParseAccountBalanceCallbackReturnType(MpesaBaseModel):
@@ -141,13 +142,16 @@ class CallbackHandlerOptions(MpesaBaseModel):
     on_c2b_validation: Optional[Callable[[C2BCallback], Any]] = None
     on_b2c_result: Optional[Callable[[OnB2CResultType], Any]] = None
     on_b2b_result: Optional[Callable[[OnB2BResultType], Any]] = None
-    on_account_balance_result: Optional[Callable[[OnAccountBalanceResultType], Any]] = None
+    on_account_balance_result: Optional[Callable[[OnAccountBalanceResultType], Any]] = (
+        None
+    )
     on_transaction_status_result: Optional[
         Callable[[OnTransactionStatusResultType], Any]
     ] = None
-    on_reversal_result: Optional[Callable[[OnReversalResultType], Any]] = NotImplemented
-    validate_ip: Optional[bool] =None
-    allowed_ips: Optional[list[str]] = Field(default_factory=lambda:[
+    on_reversal_result: Optional[Callable[[OnReversalResultType], Any]] = None
+    validate_ip: Optional[bool] = None
+    allowed_ips: Optional[list[str]] = Field(
+        default_factory=lambda: [
             "196.201.214.200",
             "196.201.214.206",
             "196.201.213.114",
@@ -160,21 +164,21 @@ class CallbackHandlerOptions(MpesaBaseModel):
             "196.201.212.136",
             "196.201.212.74",
             "196.201.212.69",
-        ])
-    is_duplicate: Optional[Callable[[str], bool]] = None
+        ]
+    )
+    is_duplicate: Optional[Callable[[str], Awaitable[bool]]] = None
     logger: Optional[LoggerType] = None
 
 
-class MpesaCallbackHandler():
-  
-   
-    def __init__(self, logger: Optional[Any] = None, options: Optional[CallbackHandlerOptions] = None):
+class MpesaCallbackHandler:
+    def __init__(
+        self,
+        logger: Optional[Any] = None,
+        options: Optional[CallbackHandlerOptions] = None,
+    ):
         self.logger = logger if logger is not None else logging.getLogger(__name__)
         self.options = CallbackHandlerOptions() if options is None else options
 
-
-
-       
     def validate_callback_ip(self, ip_address: str) -> bool:
         """
         Validate if the provided IP address is allowed to send callbacks.
@@ -187,19 +191,21 @@ class MpesaCallbackHandler():
         """
         if self.options.validate_ip is False:
             return True
-        #allowed_ips = self.options.allowed_ips
+        # allowed_ips = self.options.allowed_ips
         return ip_address in self.options.allowed_ips
 
-    def parse_callback(self, callback: STKCallback) -> ParsedCallbackData:
+    def parse_callback(self, callback: Union[STKCallback, dict]) -> ParsedCallbackData:
         """
         Parse an STK callback and extract relevant transaction data.
 
         Args:
-            callback (STKCallback): The STK callback object received from M-Pesa.
+            callback (Union[STKCallback, dict]): The STK callback object or raw JSON dict.
 
         Returns:
             ParsedCallbackData: Parsed callback data with transaction details.
         """
+        if isinstance(callback, dict):
+            callback = STKCallback.model_validate(callback)
         stk_callback = callback.body.stk_callback
         parsed = ParsedCallbackData(
             merchant_request_id=stk_callback.merchant_request_id,
@@ -217,28 +223,30 @@ class MpesaCallbackHandler():
         return parsed
 
     # Parse C2B callback data
-    def parse_c2b_callback(self, callback: C2BCallback) -> ParsedC2BCallback:
+    def parse_c2b_callback(self, callback: Union[C2BCallback, dict]) -> ParsedC2BCallback:
         """
         Parse a C2B (Customer to Business) callback and extract transaction details.
 
         Args:
-            callback (C2BCallback): The C2B callback object received from M-Pesa.
+            callback (Union[C2BCallback, dict]): The C2B callback object or raw JSON dict.
 
         Returns:
             ParsedC2BCallback: Parsed C2B callback data with transaction details.
         """
+        if isinstance(callback, dict):
+            callback = C2BCallback.model_validate(callback)
         return ParsedC2BCallback(
-            transaction_type=callback.transaction_type,
-            transaction_id=callback.trans_id,
-            transaction_time=callback.trans_time,
+            TransactionType=callback.transaction_type,
+            TransactionId=callback.trans_id,
+            TransactionTime=callback.trans_time,
             amount=float(callback.trans_amount),
-            business_short_code=callback.business_short_code,
-            bill_ref_number=callback.bill_ref_number,
-            invoice_number=callback.invoice_number,
-            msisdn=callback.msisdn,
-            first_name=callback.first_name,
-            middle_name=callback.middle_name,
-            last_name=callback.last_name,
+            BusinessShortCode=callback.business_short_code,
+            BillRefNumber=callback.bill_ref_number,
+            InvoiceNumber=callback.invoice_number,
+            MSISDN=callback.msisdn,
+            FirstName=callback.first_name,
+            MiddleName=callback.middle_name,
+            LastName=callback.last_name,
         )
 
     def _extract_metadata(self, metadata: CallbackMetadataType) -> dict:
@@ -262,9 +270,7 @@ class MpesaCallbackHandler():
             elif name == "TransactionDate":
                 result["transaction_date"] = (
                     datetime.strptime(
-                        str(
-                            20251222144900,
-                        ),
+                        str(value),
                         "%Y%m%d%H%M%S",
                     )
                     .strftime("%Y-%m-%d %H:%M:%S")
@@ -274,7 +280,7 @@ class MpesaCallbackHandler():
                 result["phone_number"] = str(value)
         return result
 
-    def _format_transaction_date(date_str: str) -> str:
+    def _format_transaction_date(self, date_str: str) -> str:
         """
         Format a transaction date string from 'YYYYMMDDHHMMSS' to ISO format.
 
@@ -290,7 +296,7 @@ class MpesaCallbackHandler():
         except ValueError:
             return date_str  # Return original if parsing fails
 
-    def is_success(self, data:ParsedCallbackData) -> bool:
+    def is_success(self, data: ParsedCallbackData) -> bool:
         """
         Check if the transaction was successful.
 
@@ -302,7 +308,7 @@ class MpesaCallbackHandler():
         """
         return data.result_code == 0
 
-    def is_failure(self, data:ParsedCallbackData) -> bool:
+    def is_failure(self, data: ParsedCallbackData) -> bool:
         """
         Check if the transaction was a failure.
 
@@ -341,9 +347,7 @@ class MpesaCallbackHandler():
         )
 
     async def handle_callback(
-        self, 
-        callback: STKCallback, 
-        ip_address: Optional[str] = None
+        self, callback: STKCallback, ip_address: Optional[str] = None
     ) -> Any:
         """
         Handle an incoming STK callback, including IP validation, duplicate checking, and event dispatch.
@@ -374,7 +378,7 @@ class MpesaCallbackHandler():
             if is_dupe:
                 self.logger.warning(
                     "Duplicate callback detected for CheckoutRequestID",
-                    {parsed.checkout_request_id},
+                    {"checkout_request_id": parsed.checkout_request_id},
                 )
                 return  # silently ignore duplicate
         # Call the general callback handler if provided
@@ -431,16 +435,18 @@ class MpesaCallbackHandler():
 
         # parse B2C callback data
 
-    def parse_b2c_callback(self, callback: B2BCallback) -> OnB2CResultType:
+    def parse_b2c_callback(self, callback: Union[B2CCallback, dict]) -> OnB2CResultType:
         """
         Parse a B2C (Business to Customer) callback and extract transaction details.
 
         Args:
-            callback (B2BCallback): The B2C callback object.
+            callback (Union[B2CCallback, dict]): The B2C callback object or raw JSON dict.
 
         Returns:
             OnB2CResultType: Parsed B2C callback data with transaction details.
         """
+        if isinstance(callback, dict):
+            callback = B2CCallback.model_validate(callback)
         result = callback.result
         parsed = {
             "is_success": result.result_code == 0,
@@ -462,16 +468,18 @@ class MpesaCallbackHandler():
                     parsed["charges"] = float(value)
         return OnB2CResultType(**parsed)
 
-    def parse_b2b_callback(self, callback: B2BCallback) -> ParseB2BCallbackReturnType:
+    def parse_b2b_callback(self, callback: Union[B2BCallback, dict]) -> ParseB2BCallbackReturnType:
         """
         Parse a B2B (Business to Business) callback and extract transaction details.
 
         Args:
-            callback (B2BCallback): The B2B callback object.
+            callback (Union[B2BCallback, dict]): The B2B callback object or raw JSON dict.
 
         Returns:
             ParseB2BCallbackReturnType: Parsed B2B callback data with transaction details.
         """
+        if isinstance(callback, dict):
+            callback = B2BCallback.model_validate(callback)
         result = callback.result
         parsed = {
             "is_success": result.result_code == 0,
@@ -503,18 +511,19 @@ class MpesaCallbackHandler():
         return ParseB2BCallbackReturnType(**parsed)
 
     def parse_account_balance_callback(
-        self, 
-        callback: AccountBalanceCallback
+        self, callback: Union[AccountBalanceCallback, dict]
     ) -> ParseAccountBalanceCallbackReturnType:
         """
         Parse an account balance callback and extract balance details.
 
         Args:
-            callback (AccountBalanceCallback): The account balance callback object.
+            callback (Union[AccountBalanceCallback, dict]): The account balance callback object or raw JSON dict.
 
         Returns:
             ParseAccountBalanceCallbackReturnType: Parsed account balance data.
         """
+        if isinstance(callback, dict):
+            callback = AccountBalanceCallback.model_validate(callback)
         result = callback.result
         parsed = {
             "is_success": result.result_code == 0,
@@ -535,22 +544,23 @@ class MpesaCallbackHandler():
         return ParseAccountBalanceCallbackReturnType(**parsed)
 
     def parse_transaction_status_callback(
-        self, 
-        callback: TransactionStatusCallback
+        self, callback: Union[TransactionStatusCallback, dict]
     ) -> OnTransactionStatusResultType:
         """
         Parse a transaction status callback and extract status details.
 
         Args:
-            callback (TransactionStatusCallback): The transaction status callback object.
+            callback (Union[TransactionStatusCallback, dict]): The transaction status callback object or raw JSON dict.
 
         Returns:
             OnTransactionStatusResultType: Parsed transaction status data.
         """
+        if isinstance(callback, dict):
+            callback = TransactionStatusCallback.model_validate(callback)
         result = callback.result
         parsed = {
-            "is_success": result["result_code"] == 0,
-            "originator_conversation_id": self.originator_conversation_id,
+            "is_success": result.result_code == 0,
+            "originator_conversation_id": result.originator_conversation_id,
             "error_message": self.get_error_message(result.result_code)
             if result.result_code != 0
             else None,
@@ -574,18 +584,19 @@ class MpesaCallbackHandler():
         return OnTransactionStatusResultType(**parsed)
 
     def parse_reversal_callback(
-        self, 
-        callback: ReversalCallback
+        self, callback: Union[ReversalCallback, dict]
     ) -> ParseReversalCallbackReturnType:
         """
         Parse a reversal callback and extract reversal details.
 
         Args:
-            callback (ReversalCallback): The reversal callback object.
+            callback (Union[ReversalCallback, dict]): The reversal callback object or raw JSON dict.
 
         Returns:
             ParseReversalCallbackReturnType: Parsed reversal callback data.
         """
+        if isinstance(callback, dict):
+            callback = ReversalCallback.model_validate(callback)
         result = callback.result
         return ParseReversalCallbackReturnType(
             is_success=result.result_code == 0,
@@ -596,9 +607,7 @@ class MpesaCallbackHandler():
         )
 
     def create_callback_response(
-        self, 
-        success: bool = True, 
-        message: Optional[str] = None
+        self, success: bool = True, message: Optional[str] = None
     ) -> CreateCallbackResponseReturnType:
         """
         Create a standard callback response for M-Pesa API integrations.
