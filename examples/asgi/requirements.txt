@@ -1,0 +1,3 @@
+uvicorn[standard]
+python-dotenv
+singularity-payments
