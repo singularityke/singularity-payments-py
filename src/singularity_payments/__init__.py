@@ -75,6 +75,15 @@ from .utils.retry import (
 )
 
 
+def main() -> None:
+    """Minimal console-script entry point.
+
+    Prints package information. Installed as the ``singularity-payments``
+    command (see ``[project.scripts]`` in ``pyproject.toml``).
+    """
+    print("singularity-payments - M-Pesa (Daraja) Python SDK")
+    print("Docs: https://singularity-payments-docs.vercel.app")
+    print("PyPI: https://pypi.org/project/singularity-payments/")
 
 
 __all__ = [
@@ -138,4 +147,5 @@ __all__ = [
     "validate_security_credential",
     "retry_with_backoff",
     "RetryOptions",
+    "main",
 ]
