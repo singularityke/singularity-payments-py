@@ -1,14 +1,15 @@
 [project]
 name = "singularity-payments"
-version = "1.0.0"
+version = "1.0.1"
 description = "SDK for Mpesa payments."
 readme = "README.md"
 authors = [
     { name = "mtume", email = "mtume2016@gmail.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "cryptography>=46.0.5",
+    "anyio>=4.14.2",
+    "cryptography>=50.0.0",
     "httpx>=0.28.1",
     "pydantic>=2.12.5",
     "tenacity>=9.1.2",

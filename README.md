@@ -10,7 +10,7 @@ without the plumbing.
 - **Rate-limited out of the box** — in-memory limiter enabled by default, optional Redis for distributed apps
 - **Callback router** — parse, validate and answer STK, C2B, B2C, B2B, balance, transaction-status and reversal callbacks
 - **Clear errors** — a typed exception hierarchy mapped automatically from Daraja responses
-- Works with Python 3.9+
+- Works with Python 3.10+
 
 [![PyPI version](https://img.shields.io/pypi/v/singularity-payments.svg)](https://pypi.org/project/singularity-payments/)
 [![Python versions](https://img.shields.io/pypi/pyversions/singularity-payments.svg)](https://pypi.org/project/singularity-payments/)
